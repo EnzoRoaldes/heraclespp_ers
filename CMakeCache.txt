@@ -31,7 +31,7 @@ CMAKE_BUILD_TYPE:STRING=Release
 CMAKE_COLOR_MAKEFILE:BOOL=ON
 
 //CXX compiler
-CMAKE_CXX_COMPILER:FILEPATH=/gpfs/softs/spack/opt/spack/linux-centos7-haswell/gcc-4.8.5/gcc-11.2.0-mpv3i3uebzvnvz7wxn6ywysd5hftycj3/bin/g++
+CMAKE_CXX_COMPILER:STRING=/gpfs/softs/spack/opt/spack/linux-centos7-haswell/gcc-4.8.5/gcc-11.2.0-mpv3i3uebzvnvz7wxn6ywysd5hftycj3/bin/g++
 
 //A wrapper around 'ar' adding the appropriate '--plugin' option
 // for the GCC compiler
