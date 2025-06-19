@@ -113,9 +113,16 @@ public:
         KV_cdouble_1d const dx = grid.dx;
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
+	     	
+	auto *ptr_var     = var.data();
+	auto *ptr_var_rec = var_rec.data();
+    	auto s1           = var_rec.stride(1);
+    	auto s2           = var_rec.stride(2);
+   	auto s3           = var_rec.stride(3);
+    	auto s4           = var_rec.stride(4);		
 	
 	auto const [begin, end] = cell_range(range);
-	
+
 	idefix_for(
             "face_reconstruction",
             begin[0],end[0],begin[1],end[1],begin[2],end[2],
@@ -125,26 +132,40 @@ public:
         //     cell_mdrange(range),
             KOKKOS_LAMBDA(int i, int j, int k)
             {
+
                 for (int idim = 0; idim < ndim; ++idim)
                 {
                     auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
                     auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                    double const dl = kron(idim,0) * dx(i)
+                    
+		    double const dl = kron(idim,0) * dx(i)
                                     + kron(idim,1) * dy(j)
                                     + kron(idim,2) * dz(k);
-                    double const dl_m = kron(idim,0) * dx(i_m)
+                    
+		    double const dl_m = kron(idim,0) * dx(i_m)
                                       + kron(idim,1) * dy(j_m)
                                       + kron(idim,2) * dz(k_m);
-                    double const dl_p = kron(idim,0) * dx(i_p)
+                    
+		    double const dl_p = kron(idim,0) * dx(i_p)
                                       + kron(idim,1) * dy(j_p)
                                       + kron(idim,2) * dz(k_p);
+			
+		    auto offset = i + j*s1 + k*s2;
 
                     double const slope = slope_limiter(
-                        (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
-                        (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+			( *(ptr_var + i_p + j_p*s1 + k_p*s2) - *(ptr_var + offset) ) / ((dl + dl_p) / 2),
+		        ( *(ptr_var + offset) - *(ptr_var + i_m + j_m*s1 + k_m*s2) ) / ((dl_m + dl) / 2));	
+                        
+		    	// (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
+                        // (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+		    
+		    		    
+		    *(ptr_var_rec + offset + 0*s3 + idim*s4) = *(ptr_var + offset) - (dl / 2) * slope;
+               	    *(ptr_var_rec + offset + 1*s3 + idim*s4) = *(ptr_var + offset) + (dl / 2) * slope;
 
-                    var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
-                    var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
+
+		    // var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
+                    // var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
                 }
             });
     }
