@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md fileAdd commentMore actions
+// SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md file
 //
 // SPDX-License-Identifier: MIT
 
@@ -22,6 +22,31 @@
 #include <range.hpp>
 
 #include "slope_limiters.hpp"
+
+// 3D loop
+template <typename Function>
+inline void idefix_for(const std::string & NAME,
+                       const int & KB, const int & KE,
+                       const int & JB, const int & JE,
+                       const int & IB, const int & IE,
+                       Function function) {
+  // Kokkos 1D Range
+    const int NK = KE - KB;
+    const int NJ = JE - JB;
+    const int NI = IE - IB;
+    const int NKNJNI = NK*NJ*NI;
+    const int NJNI = NJ * NI;
+    Kokkos::parallel_for(NAME,NKNJNI,
+      KOKKOS_LAMBDA (const int& IDX) {
+        int k = IDX / NJNI;
+        int j = (IDX - k*NJNI) / NI;
+        int i = IDX - k*NJNI - j*NI;
+        k += KB;
+        j += JB;
+        i += IB;
+        function(i,j,k);
+});}
+
 
 namespace novapp
 {
@@ -88,34 +113,53 @@ public:
         KV_cdouble_1d const dx = grid.dx;
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
+	     		
+	
+        auto const [begin, end] = cell_range(range);
 
-        Kokkos::parallel_for(
+        idefix_for(
             "face_reconstruction",
-            cell_mdrange(range),
+            begin[0],end[0],begin[1],end[1],begin[2],end[2],
+
+        // Kokkos::parallel_for(
+        //     "face_reconstruction",
+        //     cell_mdrange(range),
+
             KOKKOS_LAMBDA(int i, int j, int k)
+        {
+            for (int idim = 0; idim < ndim; ++idim)
             {
-                for (int idim = 0; idim < ndim; ++idim)
-                {
-                    auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
-                    auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                    double const dl = kron(idim,0) * dx(i)
-                                    + kron(idim,1) * dy(j)
-                                    + kron(idim,2) * dz(k);
-                    double const dl_m = kron(idim,0) * dx(i_m)
-                                      + kron(idim,1) * dy(j_m)
-                                      + kron(idim,2) * dz(k_m);
-                    double const dl_p = kron(idim,0) * dx(i_p)
-                                      + kron(idim,1) * dy(j_p)
-                                      + kron(idim,2) * dz(k_p);
+                auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
+                auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
+                
+                double const dl = kron(idim,0) * dx(i)
+                                        + kron(idim,1) * dy(j)
+                                        + kron(idim,2) * dz(k);
+                        
+                double const dl_m = kron(idim,0) * dx(i_m)
+                                        + kron(idim,1) * dy(j_m)
+                                        + kron(idim,2) * dz(k_m);
+                        
+                double const dl_p = kron(idim,0) * dx(i_p)
+                                        + kron(idim,1) * dy(j_p)
+                                        + kron(idim,2) * dz(k_p);
+                
+                double const slope = slope_limiter(
+                    // ( *(ptr_var + i_p + j_p*s1 + k_p*s2) - *(ptr_var + offset) ) / ((dl + dl_p) / 2),
+                    // ( *(ptr_var + offset) - *(ptr_var + i_m + j_m*s1 + k_m*s2) ) / ((dl_m + dl) / 2));	
+                            
+                    (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) * 0.5),
+                    (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) * 0.5));
+                
+                            
 
-                    double const slope = slope_limiter(
-                        (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
-                        (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+                // *(ptr_var_rec + offset + 0*s3 + idim*s4) = *(ptr_var + offset) - (dl / 2) * slope;
+                // *(ptr_var_rec + offset + 1*s3 + idim*s4) = *(ptr_var + offset) + (dl / 2) * slope;
 
-                    var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
-                    var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
-                }
-            });
+                var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl * 0.5) * slope;
+                var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl * 0.5) * slope;
+            }
+        });
     }
 };
 
