@@ -138,3 +138,15 @@ endif()
 if("${BUILD_TESTING}")
     add_subdirectory(tests)
 endif()
+
+## Enzo
+
+set(TILING_I 32 CACHE STRING "Tiling in i-direction")
+set(TILING_J 2 CACHE STRING "Tiling in j-direction")
+set(TILING_K 1 CACHE STRING "Tiling in k-direction")
+
+add_definitions(
+  -DTILING_I=${TILING_I}
+  -DTILING_J=${TILING_J}
+  -DTILING_K=${TILING_K}
+)

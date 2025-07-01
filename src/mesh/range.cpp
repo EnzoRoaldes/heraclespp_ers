@@ -16,6 +16,18 @@
 
 #include "range.hpp"
 
+#ifndef TILING_I
+#define TILING_I 1
+#endif
+
+#ifndef TILING_J
+#define TILING_J 181
+#endif
+
+#ifndef TILING_K
+#define TILING_K 1
+#endif
+
 namespace novapp
 {
 
@@ -156,7 +168,7 @@ Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Le
     auto const [begin, end] = cell_range(range);
     return Kokkos::MDRangePolicy<
             int,
-            Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(begin, end, {16, 2, 2});
+            Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(begin, end, {TILING_I, TILING_J, TILING_K});
 }
 
 } // namespace novapp
