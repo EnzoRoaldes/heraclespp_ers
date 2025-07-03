@@ -69,7 +69,7 @@ private:
     std::array<int, 3> m_tiling;
 
 public:
-    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter, std::array<int, 3> tiling = {181, 1, 1})
+    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter, std::array<int, 3> tiling)
         : m_slope_limiter(slope_limiter), m_tiling(tiling)
     {
     }
@@ -121,7 +121,7 @@ public:
 };
 
 inline std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(
-        std::string const& slope, std::array<int, 3> tiling = {181, 1, 1})
+        std::string const& slope, std::array<int, 3> tiling)
 {
     if (slope == "Constant")
     {

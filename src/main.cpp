@@ -314,7 +314,7 @@ void main(int argc, char** argv)
     DistributedBoundaryCondition const bcs(grid, param);
 
     std::unique_ptr<IFaceReconstruction> face_reconstruction
-            = factory_face_reconstruction(param.reconstruction_type);
+            = factory_face_reconstruction(param.reconstruction_type, tiling);
 
     std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
             = std::make_unique<ExtrapolationTimeReconstruction<EOS, Gravity>>(eos);
