@@ -16,17 +16,17 @@
 
 #include "range.hpp"
 
-#ifndef TILING_I
-#define TILING_I 1
-#endif
+// #ifndef TILING_I
+// #define TILING_I 1
+// #endif
 
-#ifndef TILING_J
-#define TILING_J 181
-#endif
+// #ifndef TILING_J
+// #define TILING_J 181
+// #endif
 
-#ifndef TILING_K
-#define TILING_K 1
-#endif
+// #ifndef TILING_K
+// #define TILING_K 1
+// #endif
 
 namespace novapp
 {
@@ -162,13 +162,20 @@ std::array<Kokkos::Array<int, 3>, 2> cell_range(Range const& range)
     return std::array<Kokkos::Array<int, 3>, 2> {begin, end};
 }
 
-Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>> cell_mdrange(
-        Range const& range)
+Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>
+cell_mdrange(Range const& range, std::array<int, 3> tiling = {181, 1, 1})
 {
     auto const [begin, end] = cell_range(range);
+    
+    Kokkos::Array<int, 3> kokkos_tiling;
+    for (int d = 0; d < 3; ++d) {
+        kokkos_tiling[d] = tiling[d];
+    }
+
     return Kokkos::MDRangePolicy<
-            int,
-            Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(begin, end, {TILING_I, TILING_J, TILING_K});
+        int,
+        Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(
+            begin, end, kokkos_tiling);
 }
 
 } // namespace novapp

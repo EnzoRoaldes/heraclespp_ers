@@ -274,6 +274,25 @@ void main(int argc, char** argv)
         initialization->execute(grid.range.no_ghosts(), grid, rho.view_device(), u.view_device(), P.view_device(), fx.view_device());
     }
 
+
+    // ENZO
+    std::array<int, 3> tiling = {16, 2, 2};
+    for (int iarg = 2; iarg < argc; ++iarg)
+    {
+        std::string_view arg(argv[iarg]);
+        if (arg.rfind("--tiling=", 0) == 0)
+        {
+            std::string_view v = arg.substr(9);
+            std::sscanf(v.data(), "%d,%d,%d", &tiling[0], &tiling[1], &tiling[2]);
+        } 
+        else 
+        {
+            printf("missing --tiling args\n");
+        }
+    }
+    // ENZO
+
+
     // Create the operators of the main time loop
     std::array<std::unique_ptr<IBoundaryCondition<Gravity>>, nfaces> bcs_array;
     for(int idim = 0; idim < ndim; ++idim)

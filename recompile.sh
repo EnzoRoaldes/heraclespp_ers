@@ -4,8 +4,6 @@
 ##
 ## SPDX-License-Identifier: MIT
 
-rm build_heraclespp_*
-
 #SBATCH --job-name=build_heraclespp
 #SBATCH --output=build_heraclespp_%j.out
 #SBATCH --error=build_heraclespp_%j.err
@@ -40,5 +38,5 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 set -x
 
 # Compile
-cmake --build build_H100 -j 16
+cmake --build build_H100
 

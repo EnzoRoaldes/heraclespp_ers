@@ -66,10 +66,11 @@ class LimitedLinearReconstruction : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
+    std::array<int, 3> m_tiling;
 
 public:
-    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter)
-        : m_slope_limiter(slope_limiter)
+    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter, std::array<int, 3> tiling = {181, 1, 1})
+        : m_slope_limiter(slope_limiter), m_tiling(tiling)
     {
     }
 
@@ -91,7 +92,7 @@ public:
 
         Kokkos::parallel_for(
             "face_reconstruction",
-            cell_mdrange(range),
+            cell_mdrange(range, m_tiling),
             KOKKOS_LAMBDA(int i, int j, int k)
             {
                 for (int idim = 0; idim < ndim; ++idim)
@@ -120,26 +121,26 @@ public:
 };
 
 inline std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(
-        std::string const& slope)
+        std::string const& slope, std::array<int, 3> tiling = {181, 1, 1})
 {
     if (slope == "Constant")
     {
-        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant());
+        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant(), tiling);
     }
 
     if (slope == "VanLeer")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer());
+        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer(), tiling);
     }
 
     if (slope == "Minmod")
     {
-        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod());
+        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod(), tiling);
     }
 
     if (slope == "VanAlbada")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada());
+        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada(), tiling);
     }
 
     throw std::runtime_error("Unknown face reconstruction algorithm: " + slope + ".");
