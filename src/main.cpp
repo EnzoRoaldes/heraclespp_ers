@@ -276,20 +276,20 @@ void main(int argc, char** argv)
 
 
     // ENZO
-    std::array<int, 3> tiling = {16, 2, 2};
-    for (int iarg = 2; iarg < argc; ++iarg)
-    {
-        std::string_view arg(argv[iarg]);
-        if (arg.rfind("--tiling=", 0) == 0)
-        {
-            std::string_view v = arg.substr(9);
-            std::sscanf(v.data(), "%d,%d,%d", &tiling[0], &tiling[1], &tiling[2]);
-        } 
-        else 
-        {
-            printf("missing --tiling args\n");
-        }
-    }
+    // std::array<int, 3> tiling = {16, 2, 2};
+    // for (int iarg = 2; iarg < argc; ++iarg)
+    // {
+    //     std::string_view arg(argv[iarg]);
+    //     if (arg.rfind("--tiling=", 0) == 0)
+    //     {
+    //         std::string_view v = arg.substr(9);
+    //         std::sscanf(v.data(), "%d,%d,%d", &tiling[0], &tiling[1], &tiling[2]);
+    //     } 
+    //     else 
+    //     {
+    //         printf("missing --tiling args\n");
+    //     }
+    // }
     // ENZO
 
 
@@ -313,8 +313,10 @@ void main(int argc, char** argv)
 
     DistributedBoundaryCondition const bcs(grid, param);
 
+    // ENZO std::unique_ptr<IFaceReconstruction> face_reconstruction
+    //         = factory_face_reconstruction(param.reconstruction_type, tiling);
     std::unique_ptr<IFaceReconstruction> face_reconstruction
-            = factory_face_reconstruction(param.reconstruction_type, tiling);
+            = factory_face_reconstruction(param.reconstruction_type);
 
     std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
             = std::make_unique<ExtrapolationTimeReconstruction<EOS, Gravity>>(eos);

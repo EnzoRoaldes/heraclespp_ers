@@ -91,6 +91,7 @@ class LimitedLinearReconstruction : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
+    std::array<int, 3> m_tiling;
 
 public:
     explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter)
@@ -107,29 +108,18 @@ public:
         assert(equal_extents({0, 1, 2}, var, var_rec));
         assert(var_rec.extent(3) == 2);
         assert(var_rec.extent(4) == ndim);
-        
+
         auto const& slope_limiter = m_slope_limiter;
-        
-        auto grid_dx = grid.dx;
-        auto grid_dy = grid.dy;
-        auto grid_dz = grid.dz;
-        
+
+        KV_cdouble_1d const dx = grid.dx;
+        KV_cdouble_1d const dy = grid.dy;
+        KV_cdouble_1d const dz = grid.dz;
+	     		
+	
         auto const [begin, end] = cell_range(range);
+        // add tiling and modify range.cpp / hpp to fit
+        // or no ? because we don't use mdrange
         
-        KV_double_1d dx("dx_scaled", end[0] - begin[0]+1);
-        Kokkos::parallel_for("scale_dx", end[0] - begin[0]+1, KOKKOS_LAMBDA(const int i) {
-            dx(i) = 0.5 * grid_dx(i);
-        });
-
-        KV_double_1d dy("dy_scaled", end[1] - begin[1]+1);
-        Kokkos::parallel_for("scale_dy", end[1] - begin[1]+1, KOKKOS_LAMBDA(const int i) {
-            dy(i) = 0.5 * grid_dy(i);
-        });
-
-        KV_double_1d dz("dz_scaled", end[2] - begin[2]+1);
-        Kokkos::parallel_for("scale_dz", end[2] - begin[2]+1, KOKKOS_LAMBDA(const int i) {
-            dz(i) = 0.5 * grid_dz(i);
-        });
 
         idefix_for(
             "face_reconstruction",
@@ -140,33 +130,33 @@ public:
             // IDIM=0
             {                
                 double const slope = slope_limiter(      
-                    (var(i+1, j, k) - var(i, j, k)) / (dx(i) + dx(i+1)),
-                    (var(i, j, k) - var(i-1, j, k)) / (dx(i-1) + dx(i)));
+                    (var(i+1, j, k) - var(i, j, k)) / ((dx(i) + dx(i+1)) * 0.5),
+                    (var(i, j, k) - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
             
-                var_rec(i, j, k, 0, 0) =  var(i, j, k) - dx(i) * slope;
-                var_rec(i, j, k, 1, 0) =  var(i, j, k) + dx(i) * slope;
+                var_rec(i, j, k, 0, 0) =  var(i, j, k) - (dx(i) * 0.5) * slope;
+                var_rec(i, j, k, 1, 0) =  var(i, j, k) + (dx(i) * 0.5) * slope;
             }
 
 
             // IDIM=1
             {
                 double const slope = slope_limiter(      
-                    (var(i, j+1, k) - var(i, j, k)) / (dy(j) + dy(j+1)),
-                    (var(i, j, k) - var(i, j-1, k)) / (dy(j-1) + dy(j)));
+                    (var(i, j+1, k) - var(i, j, k)) / ((dy(j) + dy(j+1)) * 0.5),
+                    (var(i, j, k) - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
             
-                var_rec(i, j, k, 0, 1) =  var(i, j, k) - dy(j) * slope;
-                var_rec(i, j, k, 1, 1) =  var(i, j, k) + dy(j) * slope;
+                var_rec(i, j, k, 0, 1) =  var(i, j, k) - (dy(j) * 0.5) * slope;
+                var_rec(i, j, k, 1, 1) =  var(i, j, k) + (dy(j) * 0.5) * slope;
             }
 
 
             // IDIM=2
             {
-                double const slope = slope_limiter(      
-                    (var(i, j, k+1) - var(i, j, k)) / (dz(k) + dz(k+1)),
-                    (var(i, j, k) - var(i, j, k-1)) / (dz(k-1) + dz(k)));
+                double const slope = slope_limiter(
+                    (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
+                    (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
             
-                var_rec(i, j, k, 0, 2) =  var(i, j, k) - dz(k) * slope;
-                var_rec(i, j, k, 1, 2) =  var(i, j, k) + dz(k) * slope;
+                var_rec(i, j, k, 0, 2) =  var(i, j, k) - (dz(k) * 0.5) * slope;
+                var_rec(i, j, k, 1, 2) =  var(i, j, k) + (dz(k) * 0.5) * slope;
             }
 
         });
@@ -174,26 +164,26 @@ public:
 };
 
 inline std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(
-        std::string const& slope)
+        std::string const& slope, std::array<int, 3> tiling)
 {
     if (slope == "Constant")
     {
-        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant());
+        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant(), tiling);
     }
 
     if (slope == "VanLeer")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer());
+        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer(), tiling);
     }
 
     if (slope == "Minmod")
     {
-        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod());
+        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod(), tiling);
     }
 
     if (slope == "VanAlbada")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada());
+        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada(), tiling);
     }
 
     throw std::runtime_error("Unknown face reconstruction algorithm: " + slope + ".");

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -66,11 +67,10 @@ class LimitedLinearReconstruction : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    std::array<int, 3> m_tiling;
 
 public:
-    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter, std::array<int, 3> tiling)
-        : m_slope_limiter(slope_limiter), m_tiling(tiling)
+    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter)
+        : m_slope_limiter(slope_limiter)
     {
     }
 
@@ -85,10 +85,22 @@ public:
         assert(var_rec.extent(4) == ndim);
 
         auto const& slope_limiter = m_slope_limiter;
-
+        
         KV_cdouble_1d const dx = grid.dx;
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
+
+        std::array<int, 3> m_tiling = {181, 1, 1};
+
+        std::ifstream tiling_file("tiling.dat");
+        if (tiling_file) {
+            int ti, tj, tk;
+            tiling_file >> ti >> tj >> tk;
+            const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
+        }
+        else {
+            printf("tiling.dat not found, using default tiling {181, 1, 1}\n");
+        }
 
         Kokkos::parallel_for(
             "face_reconstruction",
@@ -121,26 +133,26 @@ public:
 };
 
 inline std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(
-        std::string const& slope, std::array<int, 3> tiling)
+        std::string const& slope)
 {
     if (slope == "Constant")
     {
-        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant());
     }
 
     if (slope == "VanLeer")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer());
     }
 
     if (slope == "Minmod")
     {
-        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod());
     }
 
     if (slope == "VanAlbada")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada());
     }
 
     throw std::runtime_error("Unknown face reconstruction algorithm: " + slope + ".");

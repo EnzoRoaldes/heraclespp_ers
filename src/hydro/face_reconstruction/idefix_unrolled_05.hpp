@@ -147,7 +147,7 @@ public:
 
             // IDIM=2
             {
-                double const slope = slope_limiter(      
+                double const slope = slope_limiter(
                     (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
                     (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
             

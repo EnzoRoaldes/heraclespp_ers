@@ -35,4 +35,4 @@ set -x
 ## To compute in the submission directory
 cd "${SLURM_SUBMIT_DIR}"
 
-ncu --nvtx --import-source yes --target-processes all --launch-skip 6 --launch-count 6 --set full --kernel-name-base demangled -k regex:".*Linear.*" -f -o report_H100.ncu-rep ./../build_H100/src/nova++ ./../inputs/rayleigh_taylor3d.ini --tiling=8,4,4
+ncu --nvtx --import-source yes --target-processes all --launch-skip 6 --launch-count 6 --set full --kernel-name-base demangled -k regex:".*Linear.*" -f -o report_H100.ncu-rep ./../build_H100/src/nova++ ./../inputs/rayleigh_taylor3d.ini
