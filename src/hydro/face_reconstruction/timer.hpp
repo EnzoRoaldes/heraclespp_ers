@@ -91,7 +91,13 @@ public:
         KV_cdouble_1d const dz = grid.dz;
 
         std::array<int, 3> m_tiling = {8, 1, 128}; // Default tiling
+        
 
+
+        
+        
+        
+        
         std::ifstream tiling_file("tiling.dat");
         if (tiling_file) {
             int ti, tj, tk;
@@ -100,8 +106,16 @@ public:
             printf("Using tiling from tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
         }
         else {
-            printf("tiling.dat not found, using default tiling {%d, %d, %d}\n", m_tiling[0], m_tiling[1], m_tiling[2]);
+            printf("tiling.dat not found, using default tiling\n");
         }
+
+        // To see the maximum number of threads per dimension, uncomment the following lines: 
+        // const auto max_threads_dim = cell_mdrange(range, m_tiling).space().cuda_device_prop().maxThreadsDim;
+        // printf("Max threads per block: {%d, %d, %d}\n", max_threads_dim[0], max_threads_dim[1], max_threads_dim[2]);
+        
+
+
+        Kokkos::Timer timer;
 
         Kokkos::parallel_for(
             "face_reconstruction",
@@ -130,6 +144,17 @@ public:
                 var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
             }
         });
+
+        double time = timer.seconds();
+        timer.reset();
+
+        // Append timing and tiling to a file (concurrent-safe)
+        static std::mutex file_mutex;
+        {
+            std::lock_guard<std::mutex> lock(file_mutex);
+            std::ofstream timing_file("timing_face_reconstruction.dat", std::ios::app | std::ios::out);
+            timing_file << m_tiling[0] << " " << m_tiling[1] << " " << m_tiling[2] << " " << time << "\n";
+        }
     }
 };
 

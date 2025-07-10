@@ -100,7 +100,7 @@ public:
             printf("Using tiling from tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
         }
         else {
-            printf("tiling.dat not found, using default tiling {%d, %d, %d}\n", m_tiling[0], m_tiling[1], m_tiling[2]);
+            printf("tiling.dat not found, using default tiling\n");
         }
 
         Kokkos::parallel_for(
@@ -108,6 +108,7 @@ public:
             cell_mdrange(range, m_tiling),
             KOKKOS_LAMBDA(int i, int j, int k)
         {
+            const double var_ijk = var(i, j, k);
             for (int idim = 0; idim < ndim; ++idim)
             {
                 auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
@@ -123,11 +124,11 @@ public:
                                     + kron(idim,2) * dz(k_p);
 
                 double const slope = slope_limiter(
-                    (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
-                    (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+                    (var(i_p, j_p, k_p) - var_ijk) / ((dl + dl_p) / 2),
+                    (var_ijk - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
 
-                var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
-                var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
+                var_rec(i, j, k, 0, idim) =  var_ijk - (dl / 2) * slope;
+                var_rec(i, j, k, 1, idim) =  var_ijk + (dl / 2) * slope;
             }
         });
     }

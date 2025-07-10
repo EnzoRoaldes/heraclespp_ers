@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md file
+// SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md fileAdd commentMore actions
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -22,31 +23,6 @@
 #include <range.hpp>
 
 #include "slope_limiters.hpp"
-
-// 3D loop
-template <typename Function>
-inline void idefix_for(const std::string & NAME,
-                       const int & KB, const int & KE,
-                       const int & JB, const int & JE,
-                       const int & IB, const int & IE,
-                       Function function) {
-  // Kokkos 1D Range
-    const int NK = KE - KB;
-    const int NJ = JE - JB;
-    const int NI = IE - IB;
-    const int NKNJNI = NK*NJ*NI;
-    const int NJNI = NJ * NI;
-    Kokkos::parallel_for(NAME,NKNJNI,
-      KOKKOS_LAMBDA (const int& IDX) {
-        int k = IDX / NJNI;
-        int j = (IDX - k*NJNI) / NI;
-        int i = IDX - k*NJNI - j*NI;
-        k += KB;
-        j += JB;
-        i += IB;
-        function(i,j,k);
-});}
-
 
 namespace novapp
 {
@@ -91,7 +67,6 @@ class LimitedLinearReconstruction : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    std::array<int, 3> m_tiling;
 
 public:
     explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter)
@@ -110,80 +85,87 @@ public:
         assert(var_rec.extent(4) == ndim);
 
         auto const& slope_limiter = m_slope_limiter;
-
+        
         KV_cdouble_1d const dx = grid.dx;
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
-	     		
-	
-        auto const [begin, end] = cell_range(range);
-        // add tiling and modify range.cpp / hpp to fit
-        // or no ? because we don't use mdrange
-        
 
-        idefix_for(
+        std::array<int, 3> m_tiling = {8, 1, 128}; // Default tiling
+
+        std::ifstream tiling_file("tiling.dat");
+        if (tiling_file) {
+            int ti, tj, tk;
+            tiling_file >> ti >> tj >> tk;
+            const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
+            printf("Using tiling from tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
+        }
+        else {
+            printf("tiling.dat not found, using default tiling\n");
+        }
+
+        Kokkos::parallel_for(
             "face_reconstruction",
-            begin[0],end[0],begin[1],end[1],begin[2],end[2],
+            cell_mdrange(range, m_tiling),
             KOKKOS_LAMBDA(int i, int j, int k)
         {
+            const double var_ijk = var(i, j, k);
 
             // IDIM=0
             {                
                 double const slope = slope_limiter(      
-                    (var(i+1, j, k) - var(i, j, k)) / ((dx(i) + dx(i+1)) * 0.5),
-                    (var(i, j, k) - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
+                    (var(i+1, j, k) - var_ijk) / ((dx(i) + dx(i+1)) * 0.5),
+                    (var_ijk - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
             
-                var_rec(i, j, k, 0, 0) =  var(i, j, k) - (dx(i) * 0.5) * slope;
-                var_rec(i, j, k, 1, 0) =  var(i, j, k) + (dx(i) * 0.5) * slope;
+                var_rec(i, j, k, 0, 0) =  var_ijk - (dx(i) * 0.5) * slope;
+                var_rec(i, j, k, 1, 0) =  var_ijk + (dx(i) * 0.5) * slope;
             }
 
 
             // IDIM=1
             {
                 double const slope = slope_limiter(      
-                    (var(i, j+1, k) - var(i, j, k)) / ((dy(j) + dy(j+1)) * 0.5),
-                    (var(i, j, k) - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
+                    (var(i, j+1, k) - var_ijk) / ((dy(j) + dy(j+1)) * 0.5),
+                    (var_ijk - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
             
-                var_rec(i, j, k, 0, 1) =  var(i, j, k) - (dy(j) * 0.5) * slope;
-                var_rec(i, j, k, 1, 1) =  var(i, j, k) + (dy(j) * 0.5) * slope;
+                var_rec(i, j, k, 0, 1) =  var_ijk - (dy(j) * 0.5) * slope;
+                var_rec(i, j, k, 1, 1) =  var_ijk + (dy(j) * 0.5) * slope;
             }
 
 
             // IDIM=2
             {
-                double const slope = slope_limiter(
-                    (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
-                    (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
+                double const slope = slope_limiter(      
+                    (var(i, j, k+1) - var_ijk) / ((dz(k) + dz(k+1)) * 0.5),
+                    (var_ijk - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
             
-                var_rec(i, j, k, 0, 2) =  var(i, j, k) - (dz(k) * 0.5) * slope;
-                var_rec(i, j, k, 1, 2) =  var(i, j, k) + (dz(k) * 0.5) * slope;
+                var_rec(i, j, k, 0, 2) =  var_ijk - (dz(k) * 0.5) * slope;
+                var_rec(i, j, k, 1, 2) =  var_ijk + (dz(k) * 0.5) * slope;
             }
-
         });
     }
 };
 
 inline std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(
-        std::string const& slope, std::array<int, 3> tiling)
+        std::string const& slope)
 {
     if (slope == "Constant")
     {
-        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant());
     }
 
     if (slope == "VanLeer")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer());
     }
 
     if (slope == "Minmod")
     {
-        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod());
     }
 
     if (slope == "VanAlbada")
     {
-        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada(), tiling);
+        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada());
     }
 
     throw std::runtime_error("Unknown face reconstruction algorithm: " + slope + ".");

@@ -90,6 +90,13 @@ public:
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
 
+        auto *ptr_var     = var.data();
+	    auto *ptr_var_rec = var_rec.data();
+    	auto s1           = var_rec.stride(1);
+    	auto s2           = var_rec.stride(2);
+   	    auto s3           = var_rec.stride(3);
+    	auto s4           = var_rec.stride(4);	
+
         std::array<int, 3> m_tiling = {8, 1, 128}; // Default tiling
 
         std::ifstream tiling_file("tiling.dat");
@@ -100,7 +107,7 @@ public:
             printf("Using tiling from tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
         }
         else {
-            printf("tiling.dat not found, using default tiling {%d, %d, %d}\n", m_tiling[0], m_tiling[1], m_tiling[2]);
+            printf("tiling.dat not found, using default tiling\n");
         }
 
         Kokkos::parallel_for(
@@ -122,12 +129,14 @@ public:
                                     + kron(idim,1) * dy(j_p)
                                     + kron(idim,2) * dz(k_p);
 
-                double const slope = slope_limiter(
-                    (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
-                    (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+                auto const offset = i + j * s1 + k * s2;
 
-                var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
-                var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
+                double const slope = slope_limiter(
+                    ( *(ptr_var + i_p + j_p*s1 + k_p*s2) - *(ptr_var + offset) ) / ((dl + dl_p) * 0.5),
+		            ( *(ptr_var + offset) - *(ptr_var + i_m + j_m*s1 + k_m*s2) ) / ((dl_m + dl) * 0.5));	
+                          
+		        *(ptr_var_rec + offset + 0*s3 + idim*s4) = *(ptr_var + offset) - (dl * 0.5) * slope;
+               	*(ptr_var_rec + offset + 1*s3 + idim*s4) = *(ptr_var + offset) + (dl * 0.5) * slope;
             }
         });
     }
