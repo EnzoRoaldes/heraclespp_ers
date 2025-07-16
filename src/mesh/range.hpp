@@ -60,6 +60,6 @@ std::ostream& operator<<(std::ostream& os, Range const& rng);
 std::array<Kokkos::Array<int, 3>, 2> cell_range(Range const& range);
 
 Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>> cell_mdrange(
-      Range const& range, std::array<int, 3> tiling = {181, 1, 1});
+      Range const& range, std::array<int, 3> tiling = {16, 2, 2});
       
 } // namespace novapp

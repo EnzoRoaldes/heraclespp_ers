@@ -90,7 +90,7 @@ public:
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
 
-        std::array<int, 3> m_tiling = {8, 1, 128}; // Default tiling
+        std::array<int, 3> m_tiling = {16, 2, 2}; // Default tiling
         
 
 
@@ -108,12 +108,6 @@ public:
         else {
             printf("tiling.dat not found, using default tiling\n");
         }
-
-        // To see the maximum number of threads per dimension, uncomment the following lines: 
-        // const auto max_threads_dim = cell_mdrange(range, m_tiling).space().cuda_device_prop().maxThreadsDim;
-        // printf("Max threads per block: {%d, %d, %d}\n", max_threads_dim[0], max_threads_dim[1], max_threads_dim[2]);
-        
-
 
         Kokkos::Timer timer;
 

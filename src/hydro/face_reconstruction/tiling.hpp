@@ -85,22 +85,22 @@ public:
         assert(var_rec.extent(4) == ndim);
 
         auto const& slope_limiter = m_slope_limiter;
-        
+
         KV_cdouble_1d const dx = grid.dx;
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
 
-        std::array<int, 3> m_tiling = {8, 1, 128}; // Default tiling
+        std::array<int, 3> m_tiling = {16, 2, 2}; // Default tiling
 
-        std::ifstream tiling_file("tiling.dat");
+        std::ifstream tiling_file("../tiling.dat");
         if (tiling_file) {
             int ti, tj, tk;
             tiling_file >> ti >> tj >> tk;
             const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
-            printf("Using tiling from tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
+            printf("Using tiling from ../tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
         }
         else {
-            printf("tiling.dat not found, using default tiling {%d, %d, %d}\n", m_tiling[0], m_tiling[1], m_tiling[2]);
+            printf("../tiling.dat not found, using default tiling {%d, %d, %d}\n", m_tiling[0], m_tiling[1], m_tiling[2]);
         }
 
         Kokkos::parallel_for(

@@ -120,38 +120,8 @@ public:
         idefix_for(
             "face_reconstruction",
             begin[0],end[0],begin[1],end[1],begin[2],end[2],
-
-        // Kokkos::parallel_for(
-        //     "face_reconstruction",
-        //     cell_mdrange(range),
-
             KOKKOS_LAMBDA(int i, int j, int k)
         {
-            // for (int idim = 0; idim < ndim; ++idim)
-            // {
-            //     auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
-            //     auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                
-            //     double const dl = kron(idim,0) * dx(i)
-            //                             + kron(idim,1) * dy(j)
-            //                             + kron(idim,2) * dz(k);
-                        
-            //     double const dl_m = kron(idim,0) * dx(i_m)
-            //                             + kron(idim,1) * dy(j_m)
-            //                             + kron(idim,2) * dz(k_m);
-                        
-            //     double const dl_p = kron(idim,0) * dx(i_p)
-            //                             + kron(idim,1) * dy(j_p)
-            //                             + kron(idim,2) * dz(k_p);
-                
-            //     double const slope = slope_limiter(      
-            //         (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
-            //         (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
-            
-            //     var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
-            //     var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
-            // }
-
             // IDIM=0
             {                
                 double const slope = slope_limiter(      
