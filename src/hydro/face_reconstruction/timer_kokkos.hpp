@@ -139,6 +139,8 @@ public:
             }
         });
 
+        Kokkos::fence("face_reconstruction");
+        
         double time = timer.seconds();
         timer.reset();
 
