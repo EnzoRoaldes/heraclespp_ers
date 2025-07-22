@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -114,15 +115,15 @@ public:
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
 	    
-    
+        
         Kokkos::Timer timer;
+
         
         auto const [begin, end] = cell_range(range);
 
         idefix_for(
             "face_reconstruction",
-            begin[0],end[0],begin[1],end[1],begin[2],end[2],
-
+            begin[2],end[2],begin[1],end[1],begin[0],end[0], // idefix takes k then, j then i
             KOKKOS_LAMBDA(int i, int j, int k)
         {
             for (int idim = 0; idim < ndim; ++idim)
@@ -151,8 +152,17 @@ public:
             }
         });
         
-        double time = timer.seconds();
+        Kokkos::fence("face_reconstruction");
+
+        double time = timer.seconds()*1000000; // Convert to microseconds
         timer.reset();
+
+        static std::mutex file_mutex;
+        {
+            std::lock_guard<std::mutex> lock(file_mutex);
+            std::ofstream timing_file("timing_face_reconstruction_idefix.dat", std::ios::app | std::ios::out);
+            timing_file << time << "\n";
+        }
     }
 };
 

@@ -146,7 +146,7 @@ public:
         timer.stop();
         double time = timer.elapsedMicroseconds();
 
-        // Append timing and tiling to a file (concurrent-safe) (useless since we execute on 1 GPU)
+        // Append timing and tiling to a file (concurrent-safe) (useless since we execute on 1 PU)
         static std::mutex file_mutex;
         {
             std::lock_guard<std::mutex> lock(file_mutex);

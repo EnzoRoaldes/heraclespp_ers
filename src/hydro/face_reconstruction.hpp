@@ -115,6 +115,10 @@ public:
                     var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
                     var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
                 }
+                if (i >= 130 && j >= 130 && k >= 258) printf("i = %d, j = %d, k = %d\n",
+                       i, j, k);
+                if (i <= 3 && j <= 3 && k <= 3) printf("i = %d, j = %d, k = %d\n",
+                       i, j, k);
             });
     }
 };

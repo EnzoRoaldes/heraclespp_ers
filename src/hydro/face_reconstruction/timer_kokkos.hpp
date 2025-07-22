@@ -141,7 +141,7 @@ public:
 
         Kokkos::fence("face_reconstruction");
         
-        double time = timer.seconds();
+        double time = timer.seconds()*1000000;
         timer.reset();
 
         // Append timing and tiling to a file (concurrent-safe)
