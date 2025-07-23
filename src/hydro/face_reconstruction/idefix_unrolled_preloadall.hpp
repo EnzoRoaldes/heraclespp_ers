@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -114,7 +115,6 @@ public:
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
 	     		
-	
         auto const [begin, end] = cell_range(range);
 
         idefix_for(
@@ -123,42 +123,56 @@ public:
             KOKKOS_LAMBDA(int i, int j, int k)
         {
 
-            // IDIM=0
-            {                
-                double const slope = slope_limiter(      
-                    (var(i+1, j, k) - var(i, j, k)) / ((dx(i) + dx(i+1)) * 0.5),
-                    (var(i, j, k) - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
+            double var_ijk = var(i,j,k);
             
-                // var_rec(i, j, k, 0, 0) =  var(i, j, k) - (dx(i) * 0.5) * slope;
-                // var_rec(i, j, k, 1, 0) =  var(i, j, k) + (dx(i) * 0.5) * slope;
-                var_rec(i, j, k, 0, 0) = fma(-(dx(i) * 0.5), slope, var(i, j, k));
-                var_rec(i, j, k, 1, 0) = fma( (dx(i) * 0.5), slope, var(i, j, k));
+            double var_i1_jk = var(i+1, j, k);
+            double var_1i_jk = var(i-1, j, k);
+            double dx_i = dx(i);
+            double dx_i1 = dx(i+1);
+            double dx_1i = dx(i-1);
+            
+            double var_ij1_k = var(i, j+1, k);
+            double var_i_1jk = var(i, j-1, k);
+            double dy_j = dy(j);
+            double dy_j1 = dy(j+1);
+            double dy_1j = dy(j-1);
+
+            double var_ij_k1 = var(i, j, k+1);
+            double var_ij_1k = var(i, j, k-1);
+            double dz_k = dz(k);
+            double dz_k1 = dz(k+1);
+            double dz_1k = dz(k-1);
+
+            // IDIM=0
+            {   
+                double const slope = slope_limiter(      
+                    (var_i1_jk - var_ijk) / ((dx_i + dx_i1) / 2),
+                    (var_ijk - var_1i_jk) / ((dx_1i + dx_i) / 2));
+            
+                var_rec(i, j, k, 0, 0) =  var_ijk - (dx_i / 2) * slope;
+                var_rec(i, j, k, 1, 0) =  var_ijk + (dx_i / 2) * slope;
             }
 
 
             // IDIM=1
             {
                 double const slope = slope_limiter(      
-                    (var(i, j+1, k) - var(i, j, k)) / ((dy(j) + dy(j+1)) * 0.5),
-                    (var(i, j, k) - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
+                    (var_ij1_k - var_ijk) / ((dy_j + dy_j1) / 2),
+                    (var_ijk - var_i_1jk) / ((dy_1j + dy_j) / 2));
             
-                // var_rec(i, j, k, 0, 1) =  var(i, j, k) - (dy(j) * 0.5) * slope;
-                // var_rec(i, j, k, 1, 1) =  var(i, j, k) + (dy(j) * 0.5) * slope;
-                var_rec(i, j, k, 0, 1) = fma(-(dy(j) * 0.5), slope, var(i, j, k));
-                var_rec(i, j, k, 1, 1) = fma( (dy(j) * 0.5), slope, var(i, j, k));
+                var_rec(i, j, k, 0, 1) =  var_ijk - (dy_j / 2) * slope;
+                var_rec(i, j, k, 1, 1) =  var_ijk + (dy_j / 2) * slope;
             }
 
 
             // IDIM=2
             {
                 double const slope = slope_limiter(      
-                    (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
-                    (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
+                    (var_ij_k1 - var_ijk) / ((dz_k + dz_k1) / 2),
+                    (var_ijk - var_ij_1k) / ((dz_1k + dz_k) / 2));
             
-                // var_rec(i, j, k, 0, 2) =  var(i, j, k) - (dz(k) * 0.5) * slope;
-                // var_rec(i, j, k, 1, 2) =  var(i, j, k) + (dz(k) * 0.5) * slope;
-                var_rec(i, j, k, 0, 2) = fma(-(dz(k) * 0.5), slope, var(i, j, k));
-                var_rec(i, j, k, 1, 2) = fma( (dz(k) * 0.5), slope, var(i, j, k));
+                var_rec(i, j, k, 0, 2) =  var_ijk - (dz_k / 2) * slope;
+                var_rec(i, j, k, 1, 2) =  var_ijk + (dz_k / 2) * slope;
             }
 
         });

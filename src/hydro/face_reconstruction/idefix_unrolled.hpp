@@ -9,6 +9,7 @@
 #pragma once
 
 #include <cassert>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -114,12 +115,11 @@ public:
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
 	     		
-	
         auto const [begin, end] = cell_range(range);
 
         idefix_for(
             "face_reconstruction",
-            begin[0],end[0],begin[1],end[1],begin[2],end[2],
+            begin[2],end[2],begin[1],end[1],begin[0],end[0], // idefix takes k then, j then i
             KOKKOS_LAMBDA(int i, int j, int k)
         {
             // IDIM=0

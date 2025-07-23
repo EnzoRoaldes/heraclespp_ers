@@ -119,7 +119,7 @@ public:
 
         idefix_for(
             "face_reconstruction",
-            begin[0],end[0],begin[1],end[1],begin[2],end[2],
+            begin[2],end[2],begin[1],end[1],begin[0],end[0], // idefix takes k then, j then i
             KOKKOS_LAMBDA(int i, int j, int k)
         {
             const double var_ijk = var(i, j, k);
