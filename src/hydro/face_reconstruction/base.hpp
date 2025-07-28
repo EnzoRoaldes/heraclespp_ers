@@ -29,48 +29,35 @@ namespace novapp
 {
 
 template <typename SlopeLimiter>
-class FaceReconstructionTiling : public IFaceReconstruction
+class FaceReconstructionBase : public IFaceReconstruction
 {
 
 private:
     SlopeLimiter m_slope_limiter;
 
 public:
-    explicit FaceReconstructionTiling(SlopeLimiter limiter) 
+    explicit FaceReconstructionBase(SlopeLimiter limiter) 
         : m_slope_limiter(limiter) {}
 
     void execute(
         Range const& range,
         Grid const& grid,
         KV_cdouble_3d const& var,
-        KV_double_5d const& var_rec) const override
+        KV_double_5d const& var_rec) const final
     {
         assert(equal_extents({0, 1, 2}, var, var_rec));
         assert(var_rec.extent(3) == 2);
         assert(var_rec.extent(4) == ndim);
-
+        
         KV_cdouble_1d const dx = grid.dx;
         KV_cdouble_1d const dy = grid.dy;
         KV_cdouble_1d const dz = grid.dz;
-
+        
         auto const& slope_limiter = m_slope_limiter;
-
-        std::array<int, 3> m_tiling = {16, 2, 2}; // Default tiling
-
-        std::ifstream tiling_file("../tiling.dat");
-        if (tiling_file) {
-            int ti, tj, tk;
-            tiling_file >> ti >> tj >> tk;
-            const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
-            printf("Using tiling from ../tiling.dat: {%d, %d, %d}\n", ti, tj, tk);
-        }
-        else {
-            printf("../tiling.dat not found, using default tiling {%d, %d, %d}\n", m_tiling[0], m_tiling[1], m_tiling[2]);
-        }
-
+        
         Kokkos::parallel_for(
             "face_reconstruction",
-            cell_mdrange(range, m_tiling),
+            cell_mdrange(range),
             KOKKOS_LAMBDA(int i, int j, int k)
             {
                 for (int idim = 0; idim < ndim; ++idim)
@@ -81,11 +68,11 @@ public:
                                     + kron(idim,1) * dy(j)
                                     + kron(idim,2) * dz(k);
                     double const dl_m = kron(idim,0) * dx(i_m)
-                                        + kron(idim,1) * dy(j_m)
-                                        + kron(idim,2) * dz(k_m);
+                                      + kron(idim,1) * dy(j_m)
+                                      + kron(idim,2) * dz(k_m);
                     double const dl_p = kron(idim,0) * dx(i_p)
-                                        + kron(idim,1) * dy(j_p)
-                                        + kron(idim,2) * dz(k_p);
+                                      + kron(idim,1) * dy(j_p)
+                                      + kron(idim,2) * dz(k_p);
 
                     double const slope = slope_limiter(
                         (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),

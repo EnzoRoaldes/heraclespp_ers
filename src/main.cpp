@@ -32,6 +32,7 @@
 #include <eos.hpp>
 #include <extrapolation_time.hpp>
 #include <face_reconstruction.hpp>
+#include <face_reconstruction_factory.hpp>
 #include <geom.hpp>
 #include <git_version.hpp>
 #include <godunov_scheme.hpp>
@@ -294,8 +295,19 @@ void main(int argc, char** argv)
 
     DistributedBoundaryCondition const bcs(grid, param);
 
+    // Default implementation name
+    std::string face_reconstruction_impl = "base";
+    // Parse command line for --face-reconstruction=<name>
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.find("--face-reconstruction=") == 0) {
+            face_reconstruction_impl = arg.substr(strlen("--face-reconstruction="));
+        }
+    }
+
+    // Use the selected implementation
     std::unique_ptr<IFaceReconstruction> face_reconstruction
-            = factory_face_reconstruction(param.reconstruction_type);
+            = factory_face_reconstruction(face_reconstruction_impl);
 
     std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
             = std::make_unique<ExtrapolationTimeReconstruction<EOS, Gravity>>(eos);
