@@ -9,181 +9,206 @@
 #pragma once
 
 #include <cassert>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
 
 #include <Kokkos_Core.hpp>
+#include <Kokkos_Profiling_ScopedRegion.hpp>
 #include <grid.hpp>
 #include <kokkos_shortcut.hpp>
 #include <kronecker.hpp>
 #include <ndim.hpp>
 #include <range.hpp>
 
+#include "../idefix_utils.hpp"
+#include "../face_reconstruction.hpp"
 #include "slope_limiters.hpp"
 
-// 3D loop
-template <typename Function>
-inline void idefix_for(const std::string & NAME,
-                       const int & KB, const int & KE,
-                       const int & JB, const int & JE,
-                       const int & IB, const int & IE,
-                       Function function) {
-  // Kokkos 1D Range
-    const int NK = KE - KB;
-    const int NJ = JE - JB;
-    const int NI = IE - IB;
-    const int NKNJNI = NK*NJ*NI;
-    const int NJNI = NJ * NI;
-    Kokkos::parallel_for(NAME,NKNJNI,
-      KOKKOS_LAMBDA (const int& IDX) {
-        int k = IDX / NJNI;
-        int j = (IDX - k*NJNI) / NI;
-        int i = IDX - k*NJNI - j*NI;
-        k += KB;
-        j += JB;
-        i += IB;
-        function(i,j,k);
-});}
+
 
 
 namespace novapp
 {
 
-class IFaceReconstruction
+template <typename SlopeLimiter>
+class FaceReconstructionIdefixUnrolledDxyzVarijk : public IFaceReconstruction
 {
-public:
-    IFaceReconstruction() = default;
-
-    IFaceReconstruction(IFaceReconstruction const& rhs) = default;
-
-    IFaceReconstruction(IFaceReconstruction&& rhs) noexcept = default;
-
-    virtual ~IFaceReconstruction() noexcept = default;
-
-    IFaceReconstruction& operator=(IFaceReconstruction const& rhs) = default;
-
-    IFaceReconstruction& operator=(IFaceReconstruction&& rhs) noexcept = default;
-
-    //! @param[in] range output iteration range
-    //! @param[in] grid provides grid information
-    //! @param[in] var cell values
-    //! @param[out] var_rec reconstructed values at interfaces
-    virtual void execute(
-        Range const& range,
-        Grid const& grid,
-        KV_cdouble_3d const& var,
-        KV_double_5d const& var_rec) const
-        = 0;
-};
-
-template <class SlopeLimiter>
-class LimitedLinearReconstruction : public IFaceReconstruction
-{
-    static_assert(
-            std::is_invocable_r_v<
-            double,
-            SlopeLimiter,
-            double,
-            double>,
-            "Invalid slope limiter.");
 
 private:
     SlopeLimiter m_slope_limiter;
+    bool m_enable_timer;
 
 public:
-    explicit LimitedLinearReconstruction(SlopeLimiter const& slope_limiter)
-        : m_slope_limiter(slope_limiter)
-    {
-    }
+    explicit FaceReconstructionIdefixUnrolledDxyzVarijk(SlopeLimiter limiter, bool enable_timer = false) 
+        : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
 
     void execute(
         Range const& range,
         Grid const& grid,
         KV_cdouble_3d const& var,
-        KV_double_5d const& var_rec) const final
+        KV_double_5d const& var_rec) const override
     {
         assert(equal_extents({0, 1, 2}, var, var_rec));
         assert(var_rec.extent(3) == 2);
         assert(var_rec.extent(4) == ndim);
-
+        
         auto const& slope_limiter = m_slope_limiter;
+        
+        Kokkos::Profiling::pushRegion("face_reconstruction");
 
-        KV_cdouble_1d const dx = 0.5*grid.dx;
-        KV_cdouble_1d const dy = 0.5*grid.dy;
-        KV_cdouble_1d const dz = 0.5*grid.dz;
-	     		
-	
+        auto grid_dx = grid.dx;
+        auto grid_dy = grid.dy;
+        auto grid_dz = grid.dz;
+        
         auto const [begin, end] = cell_range(range);
+        
+        if (m_enable_timer) {
+            cudaEvent_t start, stop;
+            cudaEventCreate(&start);
+            cudaEventCreate(&stop);
+            cudaEventRecord(start);
 
-        idefix_for(
-            "face_reconstruction",
-            begin[0],end[0],begin[1],end[1],begin[2],end[2],
-            KOKKOS_LAMBDA(int i, int j, int k)
-        {
-            const double var_ijk = var(i, j, k);
-
-            // IDIM=0
-            {                
-                double const slope = slope_limiter(      
-                    (var(i+1, j, k) - var_ijk) / (dx(i) + dx(i+1)),
-                    (var_ijk - var(i-1, j, k)) / (dx(i-1) + dx(i)));
-            
-                var_rec(i, j, k, 0, 0) =  var_ijk - dx(i) * slope;
-                var_rec(i, j, k, 1, 0) =  var_ijk + dx(i) * slope;
-            }
-
-
-            // IDIM=1
+            KV_double_1d dx("dx_scaled", end[0] - begin[0]+1);
+            Kokkos::parallel_for("scale_dx", end[0] - begin[0]+1, KOKKOS_LAMBDA(const int i) 
             {
-                double const slope = slope_limiter(      
-                    (var(i, j+1, k) - var_ijk) / (dy(j) + dy(j+1)),
-                    (var_ijk - var(i, j-1, k)) / (dy(j-1) + dy(j)));
-            
-                var_rec(i, j, k, 0, 1) =  var_ijk - dy(j) * slope;
-                var_rec(i, j, k, 1, 1) =  var_ijk + dy(j) * slope;
-            }
+                dx(i) = 0.5 * grid_dx(i);
+            });
 
-
-            // IDIM=2
+            KV_double_1d dy("dy_scaled", end[1] - begin[1]+1);
+            Kokkos::parallel_for("scale_dy", end[1] - begin[1]+1, KOKKOS_LAMBDA(const int i) 
             {
-                double const slope = slope_limiter(      
-                    (var(i, j, k+1) - var_ijk) / (dz(k) + dz(k+1)),
-                    (var_ijk - var(i, j, k-1)) / (dz(k-1) + dz(k)));
-            
-                var_rec(i, j, k, 0, 2) =  var_ijk - dz(k) * slope;
-                var_rec(i, j, k, 1, 2) =  var_ijk + dz(k) * slope;
-            }
+                dy(i) = 0.5 * grid_dy(i);
+            });
 
-        });
+            KV_double_1d dz("dz_scaled", end[2] - begin[2]+1);
+            Kokkos::parallel_for("scale_dz", end[2] - begin[2]+1, KOKKOS_LAMBDA(const int i) 
+            {
+                dz(i) = 0.5 * grid_dz(i);
+            });
+
+            idefix_for(
+                "idefix_for",
+                begin[0],end[0],begin[1],end[1],begin[2],end[2],
+                KOKKOS_LAMBDA(int i, int j, int k)
+                {
+
+                    const double var_ijk = var(i, j, k);
+
+                    // IDIM=0
+                    {                
+                        double const slope = slope_limiter(      
+                            (var(i+1, j, k) - var_ijk) / (dx(i) + dx(i+1)),
+                            (var_ijk - var(i-1, j, k)) / (dx(i-1) + dx(i)));
+                    
+                        var_rec(i, j, k, 0, 0) =  var_ijk - dx(i) * slope;
+                        var_rec(i, j, k, 1, 0) =  var_ijk + dx(i) * slope;
+                    }
+
+
+                    // IDIM=1
+                    {
+                        double const slope = slope_limiter(      
+                            (var(i, j+1, k) - var_ijk) / (dy(j) + dy(j+1)),
+                            (var_ijk - var(i, j-1, k)) / (dy(j-1) + dy(j)));
+                    
+                        var_rec(i, j, k, 0, 1) =  var_ijk - dy(j) * slope;
+                        var_rec(i, j, k, 1, 1) =  var_ijk + dy(j) * slope;
+                    }
+
+
+                    // IDIM=2
+                    {
+                        double const slope = slope_limiter(      
+                            (var(i, j, k+1) - var_ijk) / (dz(k) + dz(k+1)),
+                            (var_ijk - var(i, j, k-1)) / (dz(k-1) + dz(k)));
+                    
+                        var_rec(i, j, k, 0, 2) =  var_ijk - dz(k) * slope;
+                        var_rec(i, j, k, 1, 2) =  var_ijk + dz(k) * slope;
+                    }
+                }
+            );
+
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            float ms = 0;
+            cudaEventElapsedTime(&ms, start, stop);
+
+            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
+            std::ofstream timing_file(filename, std::ios::app);
+            if (timing_file) {
+                timing_file << "idefix_unrolled_dxyz_varijk" << " " << ms << "\n";
+            }
+            
+            cudaEventDestroy(start);
+            cudaEventDestroy(stop);
+
+        } else {
+        
+            KV_double_1d dx("dx_scaled", end[0] - begin[0]+1);
+            Kokkos::parallel_for("scale_dx", end[0] - begin[0]+1, KOKKOS_LAMBDA(const int i) 
+            {
+                dx(i) = 0.5 * grid_dx(i);
+            });
+
+            KV_double_1d dy("dy_scaled", end[1] - begin[1]+1);
+            Kokkos::parallel_for("scale_dy", end[1] - begin[1]+1, KOKKOS_LAMBDA(const int i) 
+            {
+                dy(i) = 0.5 * grid_dy(i);
+            });
+
+            KV_double_1d dz("dz_scaled", end[2] - begin[2]+1);
+            Kokkos::parallel_for("scale_dz", end[2] - begin[2]+1, KOKKOS_LAMBDA(const int i) 
+            {
+                dz(i) = 0.5 * grid_dz(i);
+            });
+
+            idefix_for(
+                "idefix_for",
+                begin[0],end[0],begin[1],end[1],begin[2],end[2],
+                KOKKOS_LAMBDA(int i, int j, int k)
+                {
+
+                    const double var_ijk = var(i, j, k);
+
+                    // IDIM=0
+                    {                
+                        double const slope = slope_limiter(      
+                            (var(i+1, j, k) - var_ijk) / (dx(i) + dx(i+1)),
+                            (var_ijk - var(i-1, j, k)) / (dx(i-1) + dx(i)));
+                    
+                        var_rec(i, j, k, 0, 0) =  var_ijk - dx(i) * slope;
+                        var_rec(i, j, k, 1, 0) =  var_ijk + dx(i) * slope;
+                    }
+
+
+                    // IDIM=1
+                    {
+                        double const slope = slope_limiter(      
+                            (var(i, j+1, k) - var_ijk) / (dy(j) + dy(j+1)),
+                            (var_ijk - var(i, j-1, k)) / (dy(j-1) + dy(j)));
+                    
+                        var_rec(i, j, k, 0, 1) =  var_ijk - dy(j) * slope;
+                        var_rec(i, j, k, 1, 1) =  var_ijk + dy(j) * slope;
+                    }
+
+
+                    // IDIM=2
+                    {
+                        double const slope = slope_limiter(      
+                            (var(i, j, k+1) - var_ijk) / (dz(k) + dz(k+1)),
+                            (var_ijk - var(i, j, k-1)) / (dz(k-1) + dz(k)));
+                    
+                        var_rec(i, j, k, 0, 2) =  var_ijk - dz(k) * slope;
+                        var_rec(i, j, k, 1, 2) =  var_ijk + dz(k) * slope;
+                    }
+                }
+            );
+        }
+        // Kokkos::Profiling::popRegion();
     }
 };
-
-inline std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(
-        std::string const& slope)
-{
-    if (slope == "Constant")
-    {
-        return std::make_unique<LimitedLinearReconstruction<Constant>>(Constant());
-    }
-
-    if (slope == "VanLeer")
-    {
-        return std::make_unique<LimitedLinearReconstruction<VanLeer>>(VanLeer());
-    }
-
-    if (slope == "Minmod")
-    {
-        return std::make_unique<LimitedLinearReconstruction<Minmod>>(Minmod());
-    }
-
-    if (slope == "VanAlbada")
-    {
-        return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada());
-    }
-
-    throw std::runtime_error("Unknown face reconstruction algorithm: " + slope + ".");
-}
 
 } // namespace novapp

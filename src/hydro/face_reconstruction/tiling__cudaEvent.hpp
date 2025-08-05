@@ -1,0 +1,136 @@
+#pragma once
+
+#include <cassert>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
+
+#include <Kokkos_Core.hpp>
+#include <grid.hpp>
+#include <kokkos_shortcut.hpp>
+#include <kronecker.hpp>
+#include <ndim.hpp>
+#include <range.hpp>
+
+#include "../face_reconstruction.hpp"
+#include "slope_limiters.hpp"
+
+#include <cuda_runtime.h>
+
+///
+#include <filesystem>
+#include <iostream>
+////
+
+namespace novapp
+{
+
+template <typename SlopeLimiter>
+class FaceReconstructionTilingCudaEvent : public IFaceReconstruction
+{
+
+private:
+    SlopeLimiter m_slope_limiter;
+
+public:
+    explicit FaceReconstructionTilingCudaEvent(SlopeLimiter limiter) 
+        : m_slope_limiter(limiter) {}
+
+    void execute(
+        Range const& range,
+        Grid const& grid,
+        KV_cdouble_3d const& var,
+        KV_double_5d const& var_rec) const override
+    {
+        assert(equal_extents({0, 1, 2}, var, var_rec));
+        assert(var_rec.extent(3) == 2);
+        assert(var_rec.extent(4) == ndim);
+
+        KV_cdouble_1d const dx = grid.dx;
+        KV_cdouble_1d const dy = grid.dy;
+        KV_cdouble_1d const dz = grid.dz;
+
+        auto const& slope_limiter = m_slope_limiter;
+
+        std::array<int, 3> m_tiling = {16, 2, 2}; // Default tiling
+
+        std::string filename = "./tiling.dat";
+        std::ifstream tiling_file(filename);
+        if (tiling_file) {
+            int ti, tj, tk;
+            tiling_file >> ti >> tj >> tk;
+            const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
+            printf("Using tiling from %s: {%d, %d, %d}\n", filename.c_str(), ti, tj, tk);
+        }
+        else {
+            printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
+        }
+
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+
+        cudaEventRecord(start);
+
+        Kokkos::parallel_for(
+            "face_reconstruction",
+            cell_mdrange(range, m_tiling),
+            KOKKOS_LAMBDA(int i, int j, int k)
+            {
+                for (int idim = 0; idim < ndim; ++idim)
+                {
+                    auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
+                    auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
+                    double const dl = kron(idim,0) * dx(i)
+                                    + kron(idim,1) * dy(j)
+                                    + kron(idim,2) * dz(k);
+                    double const dl_m = kron(idim,0) * dx(i_m)
+                                        + kron(idim,1) * dy(j_m)
+                                        + kron(idim,2) * dz(k_m);
+                    double const dl_p = kron(idim,0) * dx(i_p)
+                                        + kron(idim,1) * dy(j_p)
+                                        + kron(idim,2) * dz(k_p);
+
+                    double const slope = slope_limiter(
+                        (var(i_p, j_p, k_p) - var(i, j, k)) / ((dl + dl_p) / 2),
+                        (var(i, j, k) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+
+                    var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
+                    var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
+                }
+            }
+        );
+
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+
+        float elapsed_ms;
+        cudaEventElapsedTime(&elapsed_ms, start, stop);
+
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+
+        double elapsed_us = static_cast<double>(elapsed_ms) * 1000.0;
+
+        std::ofstream timing_file("./performance.dat", std::ios::app);
+        if (timing_file) {
+            timing_file << m_tiling[0] << " "
+                        << m_tiling[1] << " "
+                        << m_tiling[2] << " "
+                        << elapsed_us << "\n";
+        }
+
+        // Output the dimension result
+        // std::ofstream timing_file("./timing_face_reconstruction_dim.dat", std::ios::app);
+        // if (timing_file) {
+        //     timing_file << elapsed_us << "\n";
+        // }
+        // else {
+        //     throw std::runtime_error("Failed to open timing file for writing.");
+        // }
+    }
+};
+
+} // namespace novapp
