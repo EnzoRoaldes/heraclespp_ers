@@ -12,7 +12,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 
 #include <Kokkos_Core.hpp>
 #include <geom.hpp>
@@ -22,6 +21,7 @@
 #include <ndim.hpp>
 #include <range.hpp>
 
+#include "concepts.hpp"
 #include "euler_equations.hpp"
 #include "riemann_solver.hpp"
 #include "source_terms.hpp"
@@ -29,7 +29,7 @@
 namespace novapp
 {
 
-template <class Gravity>
+template <concepts::GravityField Gravity>
 class IGodunovScheme
 {
 public:
@@ -64,19 +64,10 @@ public:
         KV_double_4d const& fx_new) const = 0;
 };
 
-template <class RiemannSolver, class Gravity, class EoS>
+template <class RiemannSolver, concepts::GravityField Gravity, concepts::EulerEoS EoS>
+    requires(concepts::EulerRiemannSolver<RiemannSolver, EoS>)
 class RiemannBasedGodunovScheme : public IGodunovScheme<Gravity>
 {
-    static_assert(
-            std::is_invocable_r_v<
-                EulerFlux,
-                RiemannSolver,
-                EulerCons,
-                EulerCons,
-                int,
-                EoS>,
-            "Incompatible Riemann solver.");
-
 private:
     RiemannSolver m_riemann_solver;
     EoS m_eos;
@@ -299,7 +290,7 @@ public:
     }
 };
 
-template <class EoS, class Gravity>
+template <concepts::EulerEoS EoS, concepts::GravityField Gravity>
 inline std::unique_ptr<IGodunovScheme<Gravity>> factory_godunov_scheme(
     std::string const& riemann_solver,
     EoS const& eos)

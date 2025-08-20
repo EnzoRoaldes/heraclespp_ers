@@ -17,13 +17,16 @@
 #include <utility>
 #include <vector>
 
+#include <Kokkos_Core.hpp>
 #include <git_version.hpp>
 #include <grid.hpp>
 #include <hdf5.h>
+#include <int_cast.hpp>
 #include <kokkos_shortcut.hpp>
 #include <ndim.hpp>
 #include <nova_params.hpp>
 #include <pdi.h>
+#include <range.hpp>
 
 #include "io.hpp"
 #include "io_hdf5.hpp"
@@ -148,9 +151,9 @@ void write_pdi(
     KDV_double_3d& T)
 {
     assert(span_is_contiguous(rho, u, P, E, fx, T));
-    int const directory_size = static_cast<int>(directory.size());
+    int const directory_size = int_cast<int>(directory.size());
     std::string const output_filename = get_output_filename(prefix, output_id);
-    int const output_filename_size = static_cast<int>(output_filename.size());
+    int const output_filename_size = int_cast<int>(output_filename.size());
     sync_host(rho, u, P, E, fx, T, x, y, z);
     // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
     PDI_multi_expose(
@@ -245,7 +248,7 @@ void read_pdi(
     check_extent_dset(file_id, "/y", std::array {y_glob.extent(0)});
     check_extent_dset(file_id, "/z", std::array {z_glob.extent(0)});
 
-    int const filename_size = static_cast<int>(restart_file.size());
+    int const filename_size = int_cast<int>(restart_file.size());
     // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
     PDI_multi_expose(
         "read_file",

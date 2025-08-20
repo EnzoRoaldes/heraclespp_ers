@@ -4,22 +4,24 @@
 
 #pragma once
 
-#include <Kokkos_Core.hpp>
-#include <units.hpp>
+#include <cassert>
+#include <string>
 
 #include <inih/INIReader.hpp>
+
+#include <Kokkos_Core.hpp>
+#include <PerfectGas.hpp>
+#include <grid.hpp>
+#include <range.hpp>
+#include <units.hpp>
 
 #include "default_boundary_setup.hpp"
 #include "default_grid_setup.hpp"
 #include "default_shift_criterion.hpp"
 #include "default_user_step.hpp"
-#include "eos.hpp"
-#include <grid.hpp>
 #include "initialization_interface.hpp"
 #include "kokkos_shortcut.hpp"
 #include "ndim.hpp"
-#include "nova_params.hpp"
-#include <range.hpp>
 
 namespace novapp
 {
@@ -88,7 +90,6 @@ public:
                     rho(i, j, k) = param_setup.rho0;
                     P(i, j, k) = param_setup.P0;
                 }
-
                 else
                 {
                     rho(i, j, k) = param_setup.rho1;

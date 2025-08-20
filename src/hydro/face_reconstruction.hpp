@@ -8,33 +8,31 @@
 
 #pragma once
 
-#include <cassert>
 #include <memory>
-#include <stdexcept>
 #include <string>
-#include <type_traits>
 
-#include <Kokkos_Core.hpp>
-#include <grid.hpp>
 #include <kokkos_shortcut.hpp>
-#include <kronecker.hpp>
-#include <ndim.hpp>
-#include <range.hpp>
-
-#include "slope_limiters.hpp"
 
 namespace novapp
 {
 
+class Grid;
+class Range;
+
 class IFaceReconstruction
 {
 public:
-    IFaceReconstruction() = default;
-    IFaceReconstruction(IFaceReconstruction const& rhs) = default;
-    IFaceReconstruction(IFaceReconstruction&& rhs) noexcept = default;
-    virtual ~IFaceReconstruction() noexcept = default;
-    IFaceReconstruction& operator=(IFaceReconstruction const& rhs) = default;
-    IFaceReconstruction& operator=(IFaceReconstruction&& rhs) noexcept = default;
+    IFaceReconstruction();
+
+    IFaceReconstruction(IFaceReconstruction const& rhs);
+
+    IFaceReconstruction(IFaceReconstruction&& rhs) noexcept;
+
+    virtual ~IFaceReconstruction() noexcept;
+
+    IFaceReconstruction& operator=(IFaceReconstruction const& rhs);
+
+    IFaceReconstruction& operator=(IFaceReconstruction&& rhs) noexcept;
 
     virtual void execute(
         Range const& range,
@@ -42,5 +40,7 @@ public:
         KV_cdouble_3d const& var,
         KV_double_5d const& var_rec) const = 0;
 };
+
+std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(std::string const& slope);
 
 } // namespace novapp

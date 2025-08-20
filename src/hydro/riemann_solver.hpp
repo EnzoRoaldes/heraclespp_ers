@@ -8,11 +8,13 @@
 
 #pragma once
 
+#include <Kokkos_Array.hpp>
 #include <Kokkos_Assert.hpp>
 #include <Kokkos_Macros.hpp>
 #include <Kokkos_MathematicalFunctions.hpp>
 #include <ndim.hpp>
 
+#include "concepts.hpp"
 #include "euler_equations.hpp"
 
 namespace novapp
@@ -26,7 +28,7 @@ public:
     //! @param[in] locdim index of the direction X, Y or Z
     //! @param[in] eos Equation of state
     //! @return intercell EulerFlux
-    template <class EoS>
+    template <concepts::EulerEoS EoS>
     KOKKOS_FORCEINLINE_FUNCTION
     EulerFlux operator()(
             EulerCons const& consL,
@@ -83,7 +85,7 @@ public:
 class HLLC
 {
 public:
-    template <class EoS>
+    template <concepts::EulerEoS EoS>
     KOKKOS_FORCEINLINE_FUNCTION
     EulerFlux operator()(
             EulerCons const& consL,
@@ -178,7 +180,7 @@ public:
 class Splitting
 {
 public:
-    template <class EoS>
+    template <concepts::EulerEoS EoS>
     KOKKOS_FORCEINLINE_FUNCTION
     EulerFlux operator()(
             EulerCons const& consL,

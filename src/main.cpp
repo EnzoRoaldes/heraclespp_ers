@@ -124,7 +124,7 @@ void main(int argc, char** argv)
     {
         std::string_view const arg(argv[iarg]);
         std::string_view const option_name("--pdi-config=");
-        if (arg.find(option_name) == 0)
+        if (arg.starts_with(option_name))
         {
             std::string_view option_value = arg;
             option_value.remove_prefix(option_name.size());
@@ -363,7 +363,6 @@ void main(int argc, char** argv)
     if (!param.restart && (param.iter_output_frequency > 0 || param.time_output_frequency > 0))
     {
         ++iter_output_id;
-        ++time_output_id;
 
         temperature(grid.range.all_ghosts(), eos, rho.view_device(), P.view_device(), T.view_device());
         modify_device(T);
@@ -400,10 +399,14 @@ void main(int argc, char** argv)
         }
         if (param.time_output_frequency > 0)
         {
-            double const next_output = param.t_ini + (time_output_id + 1) * param.time_output_frequency;
+            double const next_output = param.time_first_output + (time_output_id + 1) * param.time_output_frequency;
             if ((t + dt) >= next_output)
             {
                 dt = next_output - t;
+                if (dt <= 0)
+                {
+                    throw std::runtime_error("Error: the time step is negative");
+                }
                 // (Enzo) make_output = true;
                 ++time_output_id;
             }
