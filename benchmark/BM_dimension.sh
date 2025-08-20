@@ -4,7 +4,7 @@
 ##
 ## SPDX-License-Identifier: MIT
 
-#SBATCH --job-name=sgpu_ncuH100
+#SBATCH --job-name=sgpu_ncuH100_dimension
 #SBATCH --output=%x.o%j
 #SBATCH --time=02:00:00
 #SBATCH -C h100
@@ -32,13 +32,7 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 
 : > ./exec_time_cudaEvent_face_reconstruction.dat
 
-# METHODS=("base" \
-#          "idefix" "idefix_05" "idefix_unrolled_05_2" "idefix_unrolled_05_fma" \
-#          "idefix_unrolled_05" "idefix_unrolled_05_varijk" "idefix_unrolled" \
-#          "idefix_unrolled_preload_05" "idefix_unrolled_preloadall" "idefix_unrolled_preload" \
-#          "tiling_05_varijk" "tiling_direct_mem" "tiling" "tiling_unrolled_05" \
-#          "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
-METHODS=("TP")
+DIMENSIONS=("258 130 258" "258 516 65" "215 516 78") # à modifier
 
 BUILD_DIR=build_H100
 cmake \
@@ -58,21 +52,21 @@ cmake \
     -B $BUILD_DIR
 cmake --build $BUILD_DIR
 
-for method in "${METHODS[@]}"; do
-    echo "### Profiling method: $method ###"
+for dim in "${DIMENSIONS[@]}"; do
+    echo "### Testing dimension: $dim ###"
 
-    REPORT_NAME="report_H100_${method}.ncu-rep"
+    : > ./dimension.dat
+    echo "$dim" > ./dimension.dat
 
-    ./$BUILD_DIR/src/nova++ ./inputs/rayleigh_taylor3d.ini --face-reconstruction="$method" --timer
-    # compute-sanitizer --tool memcheck ./$BUILD_DIR/src/nova++ ./inputs/rayleigh_taylor3d.ini --face-reconstruction="$method" --timer
+    ./$BUILD_DIR/src/nova++ ./inputs/rayleigh_taylor3d.ini --face-reconstruction="TP" --timer
 done
 
 FILENAME="./exec_time_cudaEvent_face_reconstruction.dat"
 if [ -f $FILENAME ]; then
-    echo "Summary of execution times for different methods:"
+    echo "Summary of execution times for different dimensions:"
     awk '
     {
-        key = $1
+        key = $3 " " $4 " " $5
         time = $2
         count[key] += 1
         vals[key, count[key]] = time
@@ -81,22 +75,17 @@ if [ -f $FILENAME ]; then
         all_valid = 1
         min_time = -1
         min_key = ""
-        base_time = -1
 
         for (k in count) {
             if (count[k] != 18) {
-                print "Error: Method", k, "does not have 18 occurrences. Found:", count[k]
+                print "Error: Dimension", k, "does not have 18 occurrences. Found:", count[k]
                 all_valid = 0
             } else {
                 sum = 0
                 for (i = 1; i <= count[k]; ++i) {
                     sum += vals[k, i]
                 }
-                print "Method:", k, "Total execution time:", sum, "ms"
-
-                if (k == "base") {
-                    base_time = sum
-                }
+                print "Dimension:", k, "Total execution time:", sum, "ms"
 
                 if (min_time < 0 || sum < min_time) {
                     min_time = sum
@@ -106,21 +95,14 @@ if [ -f $FILENAME ]; then
         }
 
         if (all_valid == 0) {
-            print "Error: Not all methods have 18 occurrences. Exiting."
+            print "Error: Not all dimensions have 18 occurrences. Exiting."
             exit 1
         }
 
-        if (base_time > 0) {
-            speedup = (1 - min_time / base_time)*100
-            print "Best method:", min_key, "with total execution time:", min_time, "ms"
-            print "Speedup compared to base:", speedup "%"
-        } else {
-            print "Error: Base method not found. Cannot calculate speedup."
-        }
+        print "Best dimension:", min_key, "with total execution time:", min_time, "ms"
     }
     ' $FILENAME
 else
     echo "Error: No $FILENAME file found."
     exit 1
 fi
-
