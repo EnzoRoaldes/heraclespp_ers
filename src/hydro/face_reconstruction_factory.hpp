@@ -12,7 +12,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <kokkos_shortcut.hpp> // 
+#include <kokkos_shortcut.hpp> //
 
 
 namespace novapp 
