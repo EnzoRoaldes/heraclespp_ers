@@ -34,6 +34,7 @@ SIZES=("16 16 16" "16 16 32" "32 16 32"  "32 32 32" "32 32 64" "64 32 64" \
 BUILD_DIR=build_H100
 cmake \
     -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_CXX_STANDARD=20 \
     -D CMAKE_CXX_COMPILER=$PWD/vendor/kokkos/bin/nvcc_wrapper \
     -D Kokkos_ARCH_ICX=ON \
     -D Kokkos_ENABLE_DEPRECATED_CODE_4=OFF \

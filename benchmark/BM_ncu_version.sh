@@ -40,11 +40,17 @@ cd /lustre/fswork/projects/rech/nnp/ult48qa/heraclespp_ers/
 
 export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/nvtx-connector/kp_nvtx_connector.so
 
-METHODS=("base" "idefix_05" "idefix" "idefix_unrolled_05_2" "idefix_unrolled_05_fma" "idefix_unrolled_05" "idefix_unrolled_05_varijk" "idefix_unrolled_dxyz_varijk" "idefix_unrolled_dxyz" "idefix_unrolled" "idefix_unrolled_preload_05" "idefix_unrolled_preloadall" "idefix_unrolled_preload" "tiling_05_varijk" "tiling_direct_mem" "tiling" "tiling_unrolled_05" "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
+# METHODS=("base" \
+#         "idefix_05" "idefix" "idefix_unrolled_05_2" "idefix_unrolled_05_fma" "idefix_unrolled_05" "idefix_unrolled_05_varijk" "idefix_unrolled_dxyz_varijk" \
+#         "idefix_unrolled_dxyz" "idefix_unrolled" "idefix_unrolled_preload_05" "idefix_unrolled_preloadall" "idefix_unrolled_preload" \
+#         "tiling_05_varijk" "tiling_direct_mem" "tiling" "tiling_unrolled_05" "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
+
+METHODS=("base" "tp_TeamThread" "tp_TeamThreadMDR")
 
 BUILD_DIR=build_H100
 cmake \
     -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_CXX_STANDARD=20 \
     -D CMAKE_CXX_COMPILER=$PWD/vendor/kokkos/bin/nvcc_wrapper \
     -D Kokkos_ARCH_ICX=ON \
     -D Kokkos_ENABLE_DEPRECATED_CODE_4=OFF \

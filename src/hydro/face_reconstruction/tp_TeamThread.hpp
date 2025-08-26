@@ -29,7 +29,7 @@ namespace novapp
 {
 
 template <typename SlopeLimiter>
-class FaceReconstructionTP : public IFaceReconstruction
+class FaceReconstructionTPTT : public IFaceReconstruction
 {
 
 private:
@@ -37,7 +37,7 @@ private:
     bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionTP(SlopeLimiter limiter, bool enable_timer = false)
+    explicit FaceReconstructionTPTT(SlopeLimiter limiter, bool enable_timer = false)
         : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
 
     void execute(
@@ -80,21 +80,77 @@ public:
             printf("%s not found, using default dimension {%d, %d, %d}\n", filename.c_str(), dimension[0], dimension[1], dimension[2]);
         }
 
-        int total_size = (Ni) * (Nj) * (Nk);
-        int dimension_size = dimension[0] * dimension[1] * dimension[2];
-        assert(dimension_size == total_size && "dimension size must match the problem size");
-
         using team_policy = Kokkos::TeamPolicy<>;
         using member_type = team_policy::member_type;
 
         team_policy policy(Nk, Kokkos::AUTO);
 
+        // policy.team_size(); a faire
         if (m_enable_timer) {
             cudaEvent_t start, stop;
             cudaEventCreate(&start);
             cudaEventCreate(&stop);
             cudaEventRecord(start);
 
+            Kokkos::parallel_for(
+                "face_reconstruction",
+                policy,
+                KOKKOS_LAMBDA(const member_type& teamMember) {
+                    const int k = teamMember.league_rank(); // une équipe = une valeur de k
+                    Kokkos::parallel_for(
+                        Kokkos::TeamThreadRange(teamMember, Ni * Nj), // inverser les 2 boucles // donner début et end
+                        [=] (const int t) {
+
+                            int j = t / Ni;
+                            int i = t - j * Ni;
+
+                            int ii = bi + i;
+                            int jj = bj + j;
+                            int kk = bk + k;
+
+                            for (int idim = 0; idim < ndim; ++idim) {
+                                auto const [i_m, j_m, k_m] = lindex(idim, ii, jj, kk); // ii - 1
+                                auto const [i_p, j_p, k_p] = rindex(idim, ii, jj, kk); // ii + 1
+
+                                double const dl   = kron(idim,0) * dx(ii)
+                                                  + kron(idim,1) * dy(jj)
+                                                  + kron(idim,2) * dz(kk);
+                                double const dl_m = kron(idim,0) * dx(i_m)
+                                                  + kron(idim,1) * dy(j_m)
+                                                  + kron(idim,2) * dz(k_m);
+                                double const dl_p = kron(idim,0) * dx(i_p)
+                                                  + kron(idim,1) * dy(j_p)
+                                                  + kron(idim,2) * dz(k_p);
+
+                                double const slope = slope_limiter(
+                                    (var(i_p, j_p, k_p) - var(ii, jj, kk)) / ((dl + dl_p) / 2),
+                                    (var(ii, jj, kk) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+
+                                var_rec(ii, jj, kk, 0, idim) =  var(ii, jj, kk) - (dl / 2) * slope;
+                                var_rec(ii, jj, kk, 1, idim) =  var(ii, jj, kk) + (dl / 2) * slope;
+                            }
+                        }
+                    );
+                }
+            );
+
+            // Kokkos::fence(); /// test
+
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            float ms = 0;
+            cudaEventElapsedTime(&ms, start, stop);
+
+            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
+            std::ofstream timing_file(filename, std::ios::app);if (timing_file) {
+                timing_file << "tp_TeamThread" << " " << ms << " " << dimension[0] << " " << dimension[1] << " " << dimension[2] << "\n";
+            }
+
+            cudaEventDestroy(start);
+            cudaEventDestroy(stop);
+
+        } else {
+            printf("Executing without timer...\n");
             Kokkos::parallel_for(
                 "face_reconstruction",
                 policy,
@@ -136,76 +192,6 @@ public:
                     );
                 }
             );
-
-            Kokkos::fence(); /// test
-
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float ms = 0;
-            cudaEventElapsedTime(&ms, start, stop);
-
-            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
-            std::ofstream timing_file(filename, std::ios::app);if (timing_file) {
-                timing_file << "TP" << " " << ms << " " << dimension[0] << " " << dimension[1] << " " << dimension[2] << "\n";
-            }
-
-            cudaEventDestroy(start);
-            cudaEventDestroy(stop);
-
-        } else {
-            printf("Executing without timer...\n");
-        //     Kokkos::parallel_for(
-        //         "face_reconstruction",
-        //         policy,
-        //         KOKKOS_LAMBDA(const member_type& teamMember) {
-        //             const int k = teamMember.league_rank(); // une équipe = une valeur de k
-        //             Kokkos::parallel_for(
-        //                 Kokkos::TeamThreadRange(teamMember, dimension[0] * dimension[1]),
-        //                 [=] (const int t) {
-
-        //                     int Nj = dimension[1];
-        //                     int Ni = dimension[0];
-        //                     int j = t / Ni;
-        //                     int i = t % Ni;
-
-        //                     int ii = begin[0] + i;
-        //                     int jj = begin[1] + j;
-        //                     int kk = begin[2] + k;
-
-        //                     for (int idim = 0; idim < ndim; ++idim) {
-        //                         auto const [i_m, j_m, k_m] = lindex(idim, ii, jj, kk); // ii - 1
-        //                         auto const [i_p, j_p, k_p] = rindex(idim, ii, jj, kk); // ii + 1
-
-        //                         if (i_m < 0 || i_p >= var.extent(0) ||
-        //                             j_m < 0 || j_p >= var.extent(1) ||
-        //                             k_m < 0 || k_p >= var.extent(2)) {
-        //                             printf("Accessing:\n \
-        //                                     (i_m, j_m, k_m) = (%d,%d,%d)\n \
-        //                                     (i_p, j_p, k_p) = (%d,%d,%d)\n",
-        //                                     i_m, j_m, k_m, i_p, j_p, k_p);
-        //                         }
-
-        //                         double const dl   = kron(idim,0) * dx(ii)
-        //                                           + kron(idim,1) * dy(jj)
-        //                                           + kron(idim,2) * dz(kk);
-        //                         double const dl_m = kron(idim,0) * dx(i_m)
-        //                                           + kron(idim,1) * dy(j_m)
-        //                                           + kron(idim,2) * dz(k_m);
-        //                         double const dl_p = kron(idim,0) * dx(i_p)
-        //                                           + kron(idim,1) * dy(j_p)
-        //                                           + kron(idim,2) * dz(k_p);
-
-        //                         double const slope = slope_limiter(
-        //                             (var(i_p, j_p, k_p) - var(ii, jj, kk)) / ((dl + dl_p) / 2),
-        //                             (var(ii, jj, kk) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
-
-        //                         var_rec(ii, jj, kk, 0, idim) =  var(ii, jj, kk) - (dl / 2) * slope;
-        //                         var_rec(ii, jj, kk, 1, idim) =  var(ii, jj, kk) + (dl / 2) * slope;
-        //                     }
-        //                 }
-        //             );
-        //         }
-        //     );
         }
     }
 };

@@ -32,11 +32,42 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 
 : > ./exec_time_cudaEvent_face_reconstruction.dat
 
-DIMENSIONS=("258 130 258" "258 516 65" "215 516 78") # à modifier
+# DIMENSIONS=("258 130 258" "258 516 65" "215 516 78") # à modifier
+
+# Read dimensions from rayleigh_taylor3d.ini
+INI_FILE="./inputs/rayleigh_taylor3d.ini"
+NX=$(awk -F'=' '/^Nx_glob/ {gsub(/ /, "", $2); print $2}' $INI_FILE)
+NY=$(awk -F'=' '/^Ny_glob/ {gsub(/ /, "", $2); print $2}' $INI_FILE)
+NZ=$(awk -F'=' '/^Nz_glob/ {gsub(/ /, "", $2); print $2}' $INI_FILE)
+
+# Add 2 to each dimension
+NX=$((NX + 2))
+NY=$((NY + 2))
+NZ=$((NZ + 2))
+
+PRODUCT=$((NX * NY * NZ))
+
+# Compute all combinations of X, Y, Z such that X * Y * Z = PRODUCT and X, Y, Z >= 32
+DIMENSIONS=()
+for X in $(seq 32 $NX); do
+    if ((PRODUCT % X == 0)); then
+        for Y in $(seq 32 $NY); do
+            if (((PRODUCT / X) % Y == 0)); then
+                Z=$((PRODUCT / (X * Y)))
+                if ((Z >= 32)); then
+                    DIMENSIONS+=("$X $Y $Z")
+                fi
+            fi
+        done
+    fi
+done
+
+# echo "Computed dimensions: ${DIMENSIONS[@]}"
 
 BUILD_DIR=build_H100
 cmake \
     -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_CXX_STANDARD=20 \
     -D CMAKE_CXX_COMPILER=$PWD/vendor/kokkos/bin/nvcc_wrapper \
     -D Kokkos_ARCH_ICX=ON \
     -D Kokkos_ENABLE_DEPRECATED_CODE_4=OFF \
@@ -58,7 +89,7 @@ for dim in "${DIMENSIONS[@]}"; do
     : > ./dimension.dat
     echo "$dim" > ./dimension.dat
 
-    ./$BUILD_DIR/src/nova++ ./inputs/rayleigh_taylor3d.ini --face-reconstruction="TP" --timer
+    ./$BUILD_DIR/src/nova++ ./inputs/rayleigh_taylor3d.ini --face-reconstruction="tp_TeamVectorMDR" --timer # tp_TeamVector
 done
 
 FILENAME="./exec_time_cudaEvent_face_reconstruction.dat"
