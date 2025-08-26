@@ -45,7 +45,11 @@ void ConsToPrim(benchmark::State& state)
     std::size_t const cells = (static_cast<std::size_t>(nx) * ny) * nz;
 
     set_constant_cells_processed(state, cells);
+<<<<<<< HEAD
     set_constant_bytes_processed(state, ((2 + novapp::ndim) + (1 + novapp::ndim)) * cells);
+=======
+    set_constant_bytes_processed(state, sizeof(double) * ((2 + novapp::ndim) + (1 + novapp::ndim)) * cells);
+>>>>>>> upstream/add-example-benchmarks
 }
 
 } // namespace
