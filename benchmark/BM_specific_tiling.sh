@@ -6,7 +6,7 @@
 
 #SBATCH --job-name=sgpu_ncuH100_specific
 #SBATCH --output=%x.o%j
-#SBATCH --time=01:00:00
+#SBATCH --time=00:30:00
 #SBATCH -C h100
 
 ## GPU allocation
@@ -56,6 +56,7 @@ cmake \
     -D Kokkos_ENABLE_CUDA=ON \
     -D Kokkos_ARCH_HOPPER90=ON \
     -D Kokkos_ENABLE_DEBUG=ON \
+    -D BENCHMARK_ENABLE_TESTING=OFF \
     -B $BUILD_DIR
 cmake --build $BUILD_DIR
 

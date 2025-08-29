@@ -46,6 +46,7 @@ public:
         KV_cdouble_3d const& var,
         KV_double_5d const& var_rec) const override
     {
+        printf("FaceReconstructionBase::execute called\n");
         assert(equal_extents({0, 1, 2}, var, var_rec));
         assert(var_rec.extent(3) == 2);
         assert(var_rec.extent(4) == ndim);
@@ -55,20 +56,24 @@ public:
         KV_cdouble_1d const dz = grid.dz;
         
         auto const& slope_limiter = m_slope_limiter;
-        
+        printf("FaceReconstructionBase initialized\n");
+
         if (m_enable_timer) {
             cudaEvent_t start, stop;
             cudaEventCreate(&start);
             cudaEventCreate(&stop);
             cudaEventRecord(start);
 
+            printf("FaceReconstructionBase in cudaEvent\n");
             Kokkos::parallel_for(
                 "face_reconstruction",
                 cell_mdrange(range),
                 KOKKOS_LAMBDA(int i, int j, int k)
-                {
+                {   
+                    printf("FaceReconstructionBase start\n");
                     for (int idim = 0; idim < ndim; ++idim)
-                    {
+                    {   
+                        printf("FaceReconstructionBase azejkbdsflkbdfmn\n");
                         auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
                         auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
                         double const dl   = kron(idim,0) * dx(i)
@@ -88,19 +93,25 @@ public:
                         var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
                         var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
                     }
+                    printf("FaceReconstructionBase end\n");
                 }
             );
+
+            printf("FaceReconstructionBase exec done\n");
 
             cudaEventRecord(stop);
             cudaEventSynchronize(stop);
             float ms = 0;
             cudaEventElapsedTime(&ms, start, stop);
 
+            printf("FaceReconstructionBase before writing to file\n");
             std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
             std::ofstream timing_file(filename, std::ios::app);
             if (timing_file) {
                 timing_file << "base" << " " << ms << "\n";
             }
+
+            printf("FaceReconstructionBase after writing to file\n");
 
             cudaEventDestroy(start);
             cudaEventDestroy(stop);
