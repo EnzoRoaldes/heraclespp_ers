@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 //!
-//! @file face_reconstruction_factory.cpp
+//! @file factory_face_reconstruction.cpp
 //!
 
 #include <memory>
@@ -11,7 +11,7 @@
 #include <stdexcept>
 
 #include "face_reconstruction.hpp"
-#include "face_reconstruction_factory.hpp"
+#include "factory_face_reconstruction.hpp"
 
 #include "face_reconstruction/base.hpp"
 

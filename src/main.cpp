@@ -32,7 +32,7 @@
 #include <eos.hpp>
 #include <extrapolation_time.hpp>
 #include <face_reconstruction.hpp>
-#include <face_reconstruction_factory.hpp>
+#include <factory_face_reconstruction.hpp>
 #include <geom.hpp>
 #include <git_version.hpp>
 #include <godunov_scheme.hpp>
