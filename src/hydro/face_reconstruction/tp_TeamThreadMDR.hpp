@@ -75,9 +75,9 @@ public:
             int di, dj, dk;
             dimension_file >> di >> dj >> dk;
             dimension = {di, dj, dk};
-            printf("Using dimension from %s: {%d, %d, %d}\n", filename.c_str(), di, dj, dk);
+            // printf("Using dimension from %s: {%d, %d, %d}\n", filename.c_str(), di, dj, dk);
         } else {
-            printf("%s not found, using default dimension {%d, %d, %d}\n", filename.c_str(), dimension[0], dimension[1], dimension[2]);
+            // printf("%s not found, using default dimension {%d, %d, %d}\n", filename.c_str(), dimension[0], dimension[1], dimension[2]);
         }
 
         using team_policy = Kokkos::TeamPolicy<>;
@@ -146,7 +146,6 @@ public:
             cudaEventDestroy(stop);
 
         } else {
-            printf("Executing without timer...\n");
             Kokkos::parallel_for(
                 "face_reconstruction",
                 policy,

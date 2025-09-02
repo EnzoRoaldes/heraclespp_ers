@@ -63,10 +63,10 @@ public:
             int ti, tj, tk;
             tiling_file >> ti >> tj >> tk;
             const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
-            printf("Using tiling from %s: {%d, %d, %d}\n", filename.c_str(), ti, tj, tk);
+            // printf("Using tiling from %s: {%d, %d, %d}\n", filename.c_str(), ti, tj, tk);
         }
         else {
-            printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
+            // printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
         }
 
         Kokkos::Timer timer;

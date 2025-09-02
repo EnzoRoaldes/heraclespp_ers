@@ -10,6 +10,7 @@ target_sources(benchmarks
     PRIVATE
         # benchmark_conv_cons_to_prim.cpp
         benchmark_face_reconstruction.cpp
+        benchmark_face_reconstruction.hpp
         main.cpp
 )
 

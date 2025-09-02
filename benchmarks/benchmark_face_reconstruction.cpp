@@ -1,7 +1,9 @@
 #include <mpi.h>
 
 #include <memory>
-#include <string>
+#include <fstream>
+#include <iostream>
+
 
 #include <benchmark/benchmark.h>
 
@@ -16,7 +18,18 @@
 #include <nova_params.hpp>
 #include <range.hpp>
 
+
 namespace {
+
+std::vector<std::string> const methods = {
+    "base",
+    "idefix", "idefix_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
+    "idefix_unrolled_05", "idefix_unrolled_05_varijk", "idefix_unrolled",
+    "idefix_unrolled_preload_05", "idefix_unrolled_preloadall", "idefix_unrolled_preload",
+    "tiling_05_varijk", "tiling_direct_mem", "tiling", "tiling_unrolled_05",
+    "tiling_unrolled_05_varijk", "tiling_unrolled", "tiling_varijk",
+    "tp_TeamThread", "tp_TeamThreadMDR"
+};
 
 void set_constant_bytes_processed(benchmark::State& state, std::size_t const bytes)
 {
@@ -28,7 +41,7 @@ void set_constant_cells_processed(benchmark::State& state, std::size_t const cel
     state.counters["cells_per_second"] = benchmark::Counter(static_cast<double>(cells), benchmark::Counter::kIsIterationInvariantRate);
 }
 
-void FaceReconstruction(benchmark::State& state)
+void FaceReconstruction(benchmark::State& state, std::string const& method, int tx, int ty, int tz)
 {
     int const nx = novapp::int_cast<int>(state.range());
     int const ny = nx;
@@ -71,7 +84,12 @@ void FaceReconstruction(benchmark::State& state)
     Kokkos::deep_copy(rho, 1);
     Kokkos::deep_copy(rho_rec, -1);
 
-    std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::factory_face_reconstruction("base", false);
+    if (method == "tiling") {
+        std::ofstream file("tiling.dat");
+        file << tx << " " << ty << " " << tz << "\n";
+    }
+
+    std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::factory_face_reconstruction(method, false);
     novapp::Range const range = grid.range.no_ghosts();
     Kokkos::fence();
     for ([[maybe_unused]] auto _ : state) {
@@ -88,4 +106,114 @@ void FaceReconstruction(benchmark::State& state)
 
 } // namespace
 
-BENCHMARK(FaceReconstruction)->DenseRange(8, 63, 8)->DenseRange(64, 320, 32);
+
+
+// ---------------- Tests ----------------
+// 1) Test "version" : enregistre toutes les méthodes pour les temps d'exécution
+void RegisterVersionBenchmarks() {
+    for (auto const& method : methods) {
+        std::string name = "version/" + method;
+        ::benchmark::RegisterBenchmark(
+            name.c_str(),
+            [method](benchmark::State& st) {
+                // tx,ty,tz à 0 par défaut ; si method=="tiling", le fichier tiling.dat sera écrit.
+                FaceReconstruction(st, method, 0, 0, 0);
+            }
+        )->Arg(320);
+    }
+}
+
+// 2) Test "tiling" : balayage (tx,ty,tz) pour la méthode "tiling"
+void RegisterTilingBenchmarks() {
+    std::vector<int> I = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+    std::vector<int> J = I;
+    std::vector<int> K = {1, 2, 4, 8, 16, 32, 64};
+    for (int tx : I) {
+        for (int ty : J) {
+            for (int tz : K) {
+                if (1LL * tx * ty * tz > 512) continue;
+                std::string name = "tiling/Tx" + std::to_string(tx)
+                                  + "_Ty" + std::to_string(ty)
+                                  + "_Tz" + std::to_string(tz);
+                ::benchmark::RegisterBenchmark(
+                    name.c_str(),
+                    [tx, ty, tz](benchmark::State& st) { FaceReconstruction(st, "tiling", tx, ty, tz); }
+                )->Arg(320);
+            }
+        }
+    }
+}
+
+// 3) Test "dimension" : balayage de la taille de grille pour la méthode "base"
+void RegisterDimensionBenchmarks() {
+    for (int n = 64; n <= 352; n += 32) {
+        std::string name = "dimension/base/N" + std::to_string(n);
+        ::benchmark::RegisterBenchmark(
+            name.c_str(),
+            [n](benchmark::State& st) {
+                    FaceReconstruction(st, "base", 0, 0, 0);
+                }
+        )->Arg(n);
+    }
+}
+
+
+// // Test Tiling
+// //// START ////
+// void RegisterTilingBenchmarks(std::string const& method, int tx, int ty, int tz) {
+//     std::string name = method;
+//     if (method == "tiling") {
+//         name += "/Tx" + std::to_string(tx) + "_Ty" + std::to_string(ty) + "_Tz" + std::to_string(tz);
+//     }
+
+//     ::benchmark::RegisterBenchmark(name.c_str(),
+//         [=](benchmark::State& state) {
+//             FaceReconstruction(state, method, tx, ty, tz);
+//         }
+//     )->Arg(320);
+// }
+// ///// END /////
+
+
+
+
+// // Test Tiling
+// //// START ////
+// void RegisterTilingBenchmarks() {
+//     for (auto const& method : methods) {
+//         if (method == "tiling") {
+//             std::vector<int> I = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+//             std::vector<int> J = I;
+//             std::vector<int> K = {1, 2, 4, 8, 16, 32, 64};
+//             for (int i : I)
+//                 for (int j : J)
+//                     for (int k : K) {
+//                         if (i * j * k > 512) continue;
+//                         RegisterTilingBenchmarks(method, i, j, k);
+//                     }
+//         } else {
+//             RegisterTilingBenchmarks(method, 0, 0, 0);
+//         }
+//         // std::string sanitized = method;
+//         // std::replace(sanitized.begin(), sanitized.end(), '-', '_');
+
+//         // ::benchmark::RegisterBenchmark(
+//         //     ("FaceReconstruction/" + sanitized).c_str(),
+//         //     [method](::benchmark::State& st) { FaceReconstruction(st, method); }
+//         // )->Arg(320);
+//     }
+// }
+
+// int dummy = (RegisterBenchmarks(), 0);
+// ///// END /////
+
+
+
+
+
+// // Test Dimension
+// //// START ////
+// // BENCHMARK(FaceReconstruction)->DenseRange(8, 63, 8)->DenseRange(64, 352, 32);
+// ///// END /////
+
+// // STOOOOP

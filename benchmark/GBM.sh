@@ -56,4 +56,4 @@ cmake \
     -B $BUILD_DIR
 cmake --build $BUILD_DIR
 
-./$BUILD_DIR/benchmarks/benchmarks
+./$BUILD_DIR/benchmarks/benchmarks --benchmark_filter="$1"
