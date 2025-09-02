@@ -1,13 +1,10 @@
 #include <mpi.h>
 
-#include <memory>
 #include <fstream>
-#include <iostream>
-
+#include <string>
 
 #include <benchmark/benchmark.h>
 
-#include <PerfectGas.hpp>
 #include <face_reconstruction.hpp>
 #include <factory_face_reconstruction.hpp>
 #include <grid.hpp>
@@ -15,7 +12,6 @@
 #include <int_cast.hpp>
 #include <kokkos_shortcut.hpp>
 #include <ndim.hpp>
-#include <nova_params.hpp>
 #include <range.hpp>
 
 
@@ -54,20 +50,11 @@ void FaceReconstruction(benchmark::State& state, std::string const& method, int 
     double const zmin = 0;
     double const zmax = 1;
 
-    INIReader const reader;
-    novapp::Param param(reader);
-    param.xmin = xmin;
-    param.xmax = xmax;
-    param.ymin = ymin;
-    param.ymax = ymax;
-    param.zmin = zmin;
-    param.zmax = zmax;
-    param.Nx_glob_ng[0] = nx;
-    param.Nx_glob_ng[1] = ny;
-    param.Nx_glob_ng[2] = nz;
-    param.Ng = 1;
+    std::array<int, 3> const Nx_glob_ng {nx, ny, nz};
+    std::array<int, 3> const mpi_dims_cart {0, 0, 0};
+    int const Ng = 1;
 
-    novapp::Grid grid(param);
+    novapp::Grid grid(Nx_glob_ng, mpi_dims_cart, Ng);
     std::unique_ptr const grid_type = std::make_unique<novapp::Regular>(std::array {xmin, ymin, zmin}, std::array {xmax, ymax, zmax});
 
     novapp::KDV_double_1d x_glob("x_glob", grid.Nx_glob_ng[0] + 2 * grid.Nghost[0] + 1);
@@ -156,64 +143,3 @@ void RegisterDimensionBenchmarks() {
         )->Arg(n);
     }
 }
-
-
-// // Test Tiling
-// //// START ////
-// void RegisterTilingBenchmarks(std::string const& method, int tx, int ty, int tz) {
-//     std::string name = method;
-//     if (method == "tiling") {
-//         name += "/Tx" + std::to_string(tx) + "_Ty" + std::to_string(ty) + "_Tz" + std::to_string(tz);
-//     }
-
-//     ::benchmark::RegisterBenchmark(name.c_str(),
-//         [=](benchmark::State& state) {
-//             FaceReconstruction(state, method, tx, ty, tz);
-//         }
-//     )->Arg(320);
-// }
-// ///// END /////
-
-
-
-
-// // Test Tiling
-// //// START ////
-// void RegisterTilingBenchmarks() {
-//     for (auto const& method : methods) {
-//         if (method == "tiling") {
-//             std::vector<int> I = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
-//             std::vector<int> J = I;
-//             std::vector<int> K = {1, 2, 4, 8, 16, 32, 64};
-//             for (int i : I)
-//                 for (int j : J)
-//                     for (int k : K) {
-//                         if (i * j * k > 512) continue;
-//                         RegisterTilingBenchmarks(method, i, j, k);
-//                     }
-//         } else {
-//             RegisterTilingBenchmarks(method, 0, 0, 0);
-//         }
-//         // std::string sanitized = method;
-//         // std::replace(sanitized.begin(), sanitized.end(), '-', '_');
-
-//         // ::benchmark::RegisterBenchmark(
-//         //     ("FaceReconstruction/" + sanitized).c_str(),
-//         //     [method](::benchmark::State& st) { FaceReconstruction(st, method); }
-//         // )->Arg(320);
-//     }
-// }
-
-// int dummy = (RegisterBenchmarks(), 0);
-// ///// END /////
-
-
-
-
-
-// // Test Dimension
-// //// START ////
-// // BENCHMARK(FaceReconstruction)->DenseRange(8, 63, 8)->DenseRange(64, 352, 32);
-// ///// END /////
-
-// // STOOOOP
