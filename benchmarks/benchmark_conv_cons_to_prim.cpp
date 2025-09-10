@@ -1,8 +1,13 @@
+// SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md file
+//
+// SPDX-License-Identifier: MIT
+
 #include <benchmark/benchmark.h>
 
 #include <Kokkos_Core.hpp>
 #include <PerfectGas.hpp>
 #include <array_conversion.hpp>
+#include <int_cast.hpp>
 #include <kokkos_shortcut.hpp>
 #include <ndim.hpp>
 #include <range.hpp>
@@ -21,9 +26,10 @@ void set_constant_cells_processed(benchmark::State& state, std::size_t const cel
 
 void ConsToPrim(benchmark::State& state)
 {
-    int const nx = state.range();
-    int const ny = state.range();
-    int const nz = state.range();
+    int const nx = novapp::int_cast<int>(state.range());
+    int const ny = nx;
+    int const nz = nx;
+
     novapp::Range const range({0, 0, 0}, {nx, ny, nz}, 0);
     novapp::thermodynamics::PerfectGas const eos(2, 1);
     novapp::KV_double_3d const rho("rho", nx, ny, nz);

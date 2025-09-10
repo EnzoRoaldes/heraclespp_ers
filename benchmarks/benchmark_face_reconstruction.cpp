@@ -1,16 +1,29 @@
-#include <mpi.h>
+//old
+// #include <mpi.h>
 
-#include <fstream>
-#include <string>
+// #include <fstream>
+// #include <string>
+
+// #include <benchmark/benchmark.h>
+
+// #include <face_reconstruction.hpp>
+// #include <factory_face_reconstruction.hpp>
+// old
+
+//new
+// SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md file
+//
+// SPDX-License-Identifier: MIT
 
 #include <benchmark/benchmark.h>
+//new 
 
-#include <face_reconstruction.hpp>
-#include <factory_face_reconstruction.hpp>
 #include <grid.hpp>
 #include <grid_type.hpp>
 #include <int_cast.hpp>
 #include <kokkos_shortcut.hpp>
+
+//old
 #include <ndim.hpp>
 #include <range.hpp>
 
@@ -24,6 +37,16 @@ std::vector<std::string> const methods = {
     "tiling_unrolled_05_varijk", "tiling_unrolled_05_preloadall",
     "tp_TeamThread", "tp_TeamThreadMDR"
 };
+//old
+
+//new
+// #include <limited_linear_reconstruction.hpp>
+// #include <ndim.hpp>
+// #include <range.hpp>
+// #include <slope_limiters.hpp>
+//new
+
+namespace {
 
 void set_constant_bytes_processed(benchmark::State& state, std::size_t const bytes)
 {
@@ -53,12 +76,12 @@ void FaceReconstruction(benchmark::State& state, std::string const& method, int 
     int const Ng = 1;
 
     novapp::Grid grid(Nx_glob_ng, mpi_dims_cart, Ng);
-    std::unique_ptr const grid_type = std::make_unique<novapp::Regular>(std::array {xmin, ymin, zmin}, std::array {xmax, ymax, zmax});
+    novapp::Regular const grid_type(std::array {xmin, ymin, zmin}, std::array {xmax, ymax, zmax});
 
     novapp::KDV_double_1d x_glob("x_glob", grid.Nx_glob_ng[0] + 2 * grid.Nghost[0] + 1);
     novapp::KDV_double_1d y_glob("y_glob", grid.Nx_glob_ng[1] + 2 * grid.Nghost[1] + 1);
     novapp::KDV_double_1d z_glob("z_glob", grid.Nx_glob_ng[2] + 2 * grid.Nghost[2] + 1);
-    grid_type->execute(grid.Nghost, grid.Nx_glob_ng, x_glob.view_host(), y_glob.view_host(), z_glob.view_host());
+    grid_type.execute(grid.Nghost, grid.Nx_glob_ng, x_glob.view_host(), y_glob.view_host(), z_glob.view_host());
     novapp::modify_host(x_glob, y_glob, z_glob);
     novapp::sync_device(x_glob, y_glob, z_glob);
     grid.set_grid(x_glob.view_device(), y_glob.view_device(), z_glob.view_device());
@@ -75,6 +98,7 @@ void FaceReconstruction(benchmark::State& state, std::string const& method, int 
     }
 
     std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::factory_face_reconstruction(method, false);
+
     novapp::Range const range = grid.range.no_ghosts();
     Kokkos::fence();
     for ([[maybe_unused]] auto _ : state) {

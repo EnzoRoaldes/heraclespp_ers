@@ -77,6 +77,7 @@ cmake \
     -D Kokkos_ENABLE_DEBUG=ON \
     -D BENCHMARK_ENABLE_TESTING=OFF \
     -D BENCHMARK_FORMAT=CSV \
+    -D Novapp_BUILD_BENCHMARKING=ON \
     -B $BUILD_DIR
 
 cmake --build $BUILD_DIR -j 24
