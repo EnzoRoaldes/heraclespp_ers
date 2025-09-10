@@ -15,6 +15,7 @@ int main(int argc, char** argv)
     RegisterVersionBenchmarks();
     RegisterTilingBenchmarks();
     RegisterDimensionBenchmarks();
+    // RegisterLaunchBoundsBenchmarks();
 
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) {
         MPI_Finalize();

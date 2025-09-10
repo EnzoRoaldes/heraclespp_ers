@@ -66,7 +66,7 @@ public:
                 "face_reconstruction",
                 cell_mdrange(range),
                 KOKKOS_LAMBDA(int i, int j, int k)
-                {   
+                {
                     for (int idim = 0; idim < ndim; ++idim)
                     {
                         auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1

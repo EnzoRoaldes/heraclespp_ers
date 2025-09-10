@@ -78,7 +78,7 @@ public:
 
             Kokkos::parallel_for(
                 "face_reconstruction",
-                cell_mdrange(range, m_tiling),
+                cell_mdrange_tiling(range, m_tiling),
                 KOKKOS_LAMBDA(int i, int j, int k)
                 {
                     const double var_ijk = var(i, j, k);
@@ -123,7 +123,7 @@ public:
 
             Kokkos::parallel_for(
                 "face_reconstruction",
-                cell_mdrange(range, m_tiling),
+                cell_mdrange_tiling(range, m_tiling),
                 KOKKOS_LAMBDA(int i, int j, int k)
                 {
                     const double var_ijk = var(i, j, k);

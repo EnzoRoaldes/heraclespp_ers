@@ -15,18 +15,7 @@
 #include <ndim.hpp>
 
 #include "range.hpp"
-
-// #ifndef TILING_I
-// #define TILING_I 1
-// #endif
-
-// #ifndef TILING_J
-// #define TILING_J 181
-// #endif
-
-// #ifndef TILING_K
-// #define TILING_K 1
-// #endif
+// #include "launch_bounds_config.hpp"
 
 namespace novapp
 {
@@ -162,8 +151,18 @@ std::array<Kokkos::Array<int, 3>, 2> cell_range(Range const& range)
     return std::array<Kokkos::Array<int, 3>, 2> {begin, end};
 }
 
+Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>> cell_mdrange(
+        Range const& range)
+{
+    auto const [begin, end] = cell_range(range);
+    return Kokkos::MDRangePolicy<
+            int,
+            Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(begin, end);
+}
+
+
 Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>
-cell_mdrange(Range const& range, std::array<int, 3> tiling)
+cell_mdrange_tiling(Range const& range, std::array<int, 3> tiling)
 {
     auto const [begin, end] = cell_range(range);
     
@@ -177,5 +176,18 @@ cell_mdrange(Range const& range, std::array<int, 3> tiling)
         Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(
             begin, end, kokkos_tiling);
 }
+
+
+// using LB   = Kokkos::LaunchBounds<novapp::maxTperB, novapp::minBperSM>;
+// Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>
+// cell_mdrange_launchbounds(Range const& range)
+// {
+//     auto const [begin, end] = cell_range(range);
+
+//     return Kokkos::MDRangePolicy<
+//         int, LB,
+//         Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>>(
+//             begin, end);
+// }
 
 } // namespace novapp

@@ -73,7 +73,7 @@ public:
 
         Kokkos::parallel_for(
             "face_reconstruction",
-            cell_mdrange(range, m_tiling),
+            cell_mdrange_tiling(range, m_tiling),
             KOKKOS_LAMBDA(int i, int j, int k)
             {
                 for (int idim = 0; idim < ndim; ++idim)

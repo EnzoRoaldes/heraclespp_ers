@@ -64,7 +64,12 @@ done
 
 # echo "Computed dimensions: ${DIMENSIONS[@]}"
 
-BUILD_DIR=build_H100
+# Allow BUILD_DIR to be set from the command line, default to build_H100
+BUILD_DIR=${BUILD_DIR:-build_H100}
+if [ "$BUILD_DIR" = "build_H100" ]; then
+    echo -e "Using default BUILD_DIR: $BUILD_DIR\n   use --export=BUILD_DIR=your_build_dir to set a different one."
+fi
+
 cmake \
     -D CMAKE_BUILD_TYPE=Release \
     -D CMAKE_CXX_STANDARD=20 \

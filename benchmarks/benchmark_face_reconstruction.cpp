@@ -14,16 +14,14 @@
 #include <ndim.hpp>
 #include <range.hpp>
 
-
 namespace {
 
 std::vector<std::string> const methods = {
     "base",
-    "idefix", "idefix_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
-    "idefix_unrolled_05", "idefix_unrolled_05_varijk", "idefix_unrolled",
-    "idefix_unrolled_preload_05", "idefix_unrolled_preloadall", "idefix_unrolled_preload",
-    "tiling_05_varijk", "tiling_direct_mem", "tiling", "tiling_unrolled_05",
-    "tiling_unrolled_05_varijk", "tiling_unrolled", "tiling_varijk",
+    "idefix", "idefix_05", "idefix_unrolled", "idefix_unrolled_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
+    "idefix_unrolled_05_varijk", "idefix_unrolled_preload", "idefix_unrolled_preload_05", "idefix_unrolled_preloadall",
+    "tiling", "tiling_varijk", "tiling_05_varijk", "tiling_direct_mem", "tiling_unrolled", "tiling_unrolled_05",
+    "tiling_unrolled_05_varijk", "tiling_unrolled_05_preloadall",
     "tp_TeamThread", "tp_TeamThreadMDR"
 };
 
@@ -94,6 +92,13 @@ void FaceReconstruction(benchmark::State& state, std::string const& method, int 
 } // namespace
 
 
+// POUR LAUNCH BOUNDS
+// template<int TB, int MINBLK>
+// static void BM_FaceReconstruction_LB(benchmark::State& st) {
+// FaceReconstruction(st, "tiling_unrolled_05_preloadall_launchbounds", 0, 0, 0);
+// FaceReconstruction(st, "idefix_unrolled_preloadall_launchbounds", 0, 0, 0);
+// }
+
 
 // ---------------- Tests ----------------
 // 1) Test "version" : enregistre toutes les méthodes pour les temps d'exécution
@@ -143,3 +148,39 @@ void RegisterDimensionBenchmarks() {
         )->Arg(n);
     }
 }
+
+
+// POUR LAUNCH BOUNDS
+// // 4) Test "launchbounds" : balayage des launch bounds
+// void RegisterLaunchBoundsBenchmarks() {
+//     #define REG_LB(TB,MB) do {                                                                  \
+//         std::string name = "launchbounds/TB" + std::to_string(TB) + "_MB" + std::to_string(MB); \
+//         ::benchmark::RegisterBenchmark(                                                         \
+//             name.c_str(),                                                                       \
+//             [](benchmark::State& st){                                                           \
+//                 BM_FaceReconstruction_LB<TB,MB>(st);                                            \
+//             }                                                                                   \
+//         )->Arg(320);                                                                            \
+//     } while (0)
+        
+//     REG_LB(128,2);
+//     REG_LB(256,2);
+//     REG_LB(512,1);
+
+//     #undef REG_LB
+// }
+
+// void RegisterLaunchBoundsBenchmarks() {
+//     for (int tb : {128, 256, 512}) {
+//         for (int mb : {1, 2, 4}) {
+//             std::string name = "launchbounds/TB" + std::to_string(tb) + "_MB" + std::to_string(mb);
+//             ::benchmark::RegisterBenchmark(
+//                 name.c_str(),
+//                 [tb, mb](benchmark::State& st) {
+//                     FaceReconstruction(st, "tiling_unrolled_05_preloadall_launchbounds", tb, mb);
+//                     BM_FaceReconstruction_LB<tb, mb>(st);
+//                 }
+//             )->Arg(320);
+//         }
+//     }
+// }
