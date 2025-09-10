@@ -19,14 +19,11 @@
 # Walltime for the job
 #SBATCH --time=00:30:00
 
-## Slurm partitions (for specific jobs)
-##SBATCH --partition=compil
-
 # P6: 4 GPU H100 + RAM 80 GB, 96 CPU + RAM 468 GB
 #SBATCH --constraint=h100
 
 # Name of the job
-#SBATCH --job-name=sgpu_ncuH100
+#SBATCH --job-name=sgpu_gbmH100
 
 # Standard output (stdout)
 #SBATCH --output=%x.%J.out

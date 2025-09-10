@@ -8,16 +8,9 @@
 
 #include <Kokkos_Core.hpp>
 
-// old
-// #include "face_reconstruction.hpp"
-// #include "benchmark_face_reconstruction.hpp"
+#include "benchmark_face_reconstruction.hpp"
 
-// int main(int argc, char** argv) 
-// old
-
-//new
 int main(int argc, char** argv)
-//new
 {
     ::Kokkos::ScopeGuard const scope(argc, argv);
     MPI_Init(&argc, &argv);

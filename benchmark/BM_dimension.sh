@@ -4,14 +4,29 @@
 ##
 ## SPDX-License-Identifier: MIT
 
-#SBATCH --job-name=sgpu_ncuH100_dimension
-#SBATCH --output=%x.o%j
-#SBATCH --time=00:30:00
-#SBATCH -C h100
+# Number of nodes
+#SBATCH --nodes=1
 
-## GPU allocation
-#SBATCH --gres=gpu:1
+# Number of tasks (MPI processes)
 #SBATCH --ntasks=1
+
+# Number of cpu per task (Ex. OpenMP threads per MPI process)
+#SBATCH --cpus-per-task=24
+
+# Number of gpus
+#SBATCH --gres=gpu:1
+
+# Walltime for the job
+#SBATCH --time=00:30:00
+
+# P6: 4 GPU H100 + RAM 80 GB, 96 CPU + RAM 468 GB
+#SBATCH --constraint=h100
+
+# Name of the job
+#SBATCH --job-name=sgpu_dimensionH100
+
+# Standard output (stdout)
+#SBATCH --output=%x.%J.out
 
 set -e
 
@@ -86,8 +101,11 @@ cmake \
     -D Kokkos_ARCH_HOPPER90=ON \
     -D Kokkos_ENABLE_DEBUG=ON \
     -D BENCHMARK_ENABLE_TESTING=OFF \
+    -D BENCHMARK_FORMAT=CSV \
+    -D Novapp_BUILD_BENCHMARKING=ON \
     -B $BUILD_DIR
-cmake --build $BUILD_DIR
+
+cmake --build $BUILD_DIR -j 24
 
 for dim in "${DIMENSIONS[@]}"; do
     echo "### Testing dimension: $dim ###"

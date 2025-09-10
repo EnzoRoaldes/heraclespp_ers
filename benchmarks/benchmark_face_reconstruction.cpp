@@ -1,29 +1,18 @@
-//old
-// #include <mpi.h>
-
-// #include <fstream>
-// #include <string>
-
-// #include <benchmark/benchmark.h>
-
-// #include <face_reconstruction.hpp>
-// #include <factory_face_reconstruction.hpp>
-// old
-
-//new
 // SPDX-FileCopyrightText: 2025 The HERACLES++ development team, see COPYRIGHT.md file
 //
 // SPDX-License-Identifier: MIT
 
+#include <string>
+#include <fstream>
+#include <face_reconstruction.hpp>
+#include <factory_face_reconstruction.hpp>
 #include <benchmark/benchmark.h>
-//new 
-
+#include "benchmark_face_reconstruction.hpp"
 #include <grid.hpp>
 #include <grid_type.hpp>
 #include <int_cast.hpp>
 #include <kokkos_shortcut.hpp>
 
-//old
 #include <ndim.hpp>
 #include <range.hpp>
 
@@ -37,16 +26,7 @@ std::vector<std::string> const methods = {
     "tiling_unrolled_05_varijk", "tiling_unrolled_05_preloadall",
     "tp_TeamThread", "tp_TeamThreadMDR"
 };
-//old
 
-//new
-// #include <limited_linear_reconstruction.hpp>
-// #include <ndim.hpp>
-// #include <range.hpp>
-// #include <slope_limiters.hpp>
-//new
-
-namespace {
 
 void set_constant_bytes_processed(benchmark::State& state, std::size_t const bytes)
 {
@@ -58,7 +38,7 @@ void set_constant_cells_processed(benchmark::State& state, std::size_t const cel
     state.counters["cells_per_second"] = benchmark::Counter(static_cast<double>(cells), benchmark::Counter::kIsIterationInvariantRate);
 }
 
-void FaceReconstruction(benchmark::State& state, std::string const& method, int tx, int ty, int tz)
+void FaceReconstructionImpl(benchmark::State& state, std::string const& method, int tx, int ty, int tz)
 {
     int const nx = novapp::int_cast<int>(state.range());
     int const ny = nx;
@@ -133,7 +113,7 @@ void RegisterVersionBenchmarks() {
             name.c_str(),
             [method](benchmark::State& st) {
                 // tx,ty,tz à 0 par défaut ; si method=="tiling", le fichier tiling.dat sera écrit.
-                FaceReconstruction(st, method, 0, 0, 0);
+                FaceReconstructionImpl(st, method, 0, 0, 0);
             }
         )->Arg(320);
     }
@@ -153,7 +133,7 @@ void RegisterTilingBenchmarks() {
                                   + "_Tz" + std::to_string(tz);
                 ::benchmark::RegisterBenchmark(
                     name.c_str(),
-                    [tx, ty, tz](benchmark::State& st) { FaceReconstruction(st, "tiling", tx, ty, tz); }
+                    [tx, ty, tz](benchmark::State& st) { FaceReconstructionImpl(st, "tiling", tx, ty, tz); }
                 )->Arg(320);
             }
         }
@@ -167,7 +147,7 @@ void RegisterDimensionBenchmarks() {
         ::benchmark::RegisterBenchmark(
             name.c_str(),
             [n](benchmark::State& st) {
-                    FaceReconstruction(st, "base", 0, 0, 0);
+                    FaceReconstructionImpl(st, "base", 0, 0, 0);
                 }
         )->Arg(n);
     }
@@ -201,7 +181,7 @@ void RegisterDimensionBenchmarks() {
 //             ::benchmark::RegisterBenchmark(
 //                 name.c_str(),
 //                 [tb, mb](benchmark::State& st) {
-//                     FaceReconstruction(st, "tiling_unrolled_05_preloadall_launchbounds", tb, mb);
+//                     FaceReconstructionImpl(st, "tiling_unrolled_05_preloadall_launchbounds", tb, mb);
 //                     BM_FaceReconstruction_LB<tb, mb>(st);
 //                 }
 //             )->Arg(320);
