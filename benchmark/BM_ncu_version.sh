@@ -58,9 +58,9 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 # METHODS=("base" \
 #         "idefix_05" "idefix" "idefix_unrolled_05_2" "idefix_unrolled_05_fma" "idefix_unrolled_05" "idefix_unrolled_05_varijk" "idefix_unrolled_dxyz_varijk" \
 #         "idefix_unrolled_dxyz" "idefix_unrolled" "idefix_unrolled_preload_05" "idefix_unrolled_preloadall" "idefix_unrolled_preload" \
-#         "tiling_05_varijk" "tiling_direct_mem" "tiling" "tiling_unrolled_05" "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
+#         "tiling_05_varijk" "tiling_direct_mem" "tiling_opti" "tiling_default" "tiling_unrolled_05" "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
 
-METHODS=("base" "idefix")
+METHODS=("base" "idefix" "idefix_unrolled_preloadall")
 
 # Allow BUILD_DIR to be set from the command line, default to build_H100
 BUILD_DIR=${BUILD_DIR:-build_H100}

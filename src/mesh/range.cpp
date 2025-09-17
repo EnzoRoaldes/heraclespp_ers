@@ -151,8 +151,27 @@ std::array<Kokkos::Array<int, 3>, 2> cell_range(Range const& range)
     return std::array<Kokkos::Array<int, 3>, 2> {begin, end};
 }
 
-Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>> cell_mdrange(
-        Range const& range)
+std::array<std::array<int, 3>, 2> cell_range_std(Range const& range)
+{
+    std::array<int, 3> begin;
+    std::array<int, 3> end;
+    for (int idim = 0; idim < ndim; ++idim)
+    {
+        begin[idim] = range.Nghost[idim] - range.NgEff;
+        end[idim] = range.Nghost[idim] + range.Corner_max[idim] - range.Corner_min[idim] + range.NgEff;
+    }
+
+    for (int idim = ndim; idim < 3; ++idim)
+    {
+        begin[idim] = range.Nghost[idim];
+        end[idim] = range.Nghost[idim] + range.Corner_max[idim] - range.Corner_min[idim];
+    }
+
+    return std::array<std::array<int, 3>, 2> {begin, end};
+}
+
+Kokkos::MDRangePolicy<Kokkos::Rank<3, Kokkos::Iterate::Left, Kokkos::Iterate::Left>> 
+cell_mdrange(Range const& range)
 {
     auto const [begin, end] = cell_range(range);
     return Kokkos::MDRangePolicy<

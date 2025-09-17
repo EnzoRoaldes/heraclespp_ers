@@ -19,12 +19,15 @@
 namespace {
 
 std::vector<std::string> const methods = {
-    "base",
+    "base", "cuda",
+    
     "idefix", "idefix_05", "idefix_unrolled", "idefix_unrolled_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
     "idefix_unrolled_05_varijk", "idefix_unrolled_preload", "idefix_unrolled_preload_05", "idefix_unrolled_preloadall",
-    "tiling", "tiling_varijk", "tiling_05_varijk", "tiling_direct_mem", "tiling_unrolled", "tiling_unrolled_05",
+
+    "tiling_default", "tiling_opti", "tiling_varijk", "tiling_05_varijk", "tiling_direct_mem", "tiling_unrolled", "tiling_unrolled_05",
     "tiling_unrolled_05_varijk", "tiling_unrolled_05_preloadall",
-    "tp_TeamThread", "tp_TeamThreadMDR"
+    
+    // "tp_TeamThread", "tp_TeamThreadMDR"
 };
 
 
@@ -72,11 +75,6 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
     Kokkos::deep_copy(rho, 1);
     Kokkos::deep_copy(rho_rec, -1);
 
-    if (method == "tiling") {
-        std::ofstream file("tiling.dat");
-        file << tx << " " << ty << " " << tz << "\n";
-    }
-
     std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::factory_face_reconstruction(method, false);
 
     novapp::Range const range = grid.range.no_ghosts();
@@ -105,6 +103,8 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
 
 
 // ---------------- Tests ----------------
+
+
 // 1) Test "version" : enregistre toutes les méthodes pour les temps d'exécution
 void RegisterVersionBenchmarks() {
     for (auto const& method : methods) {
@@ -118,6 +118,7 @@ void RegisterVersionBenchmarks() {
         )->Arg(320);
     }
 }
+
 
 // 2) Test "tiling" : balayage (tx,ty,tz) pour la méthode "tiling"
 void RegisterTilingBenchmarks() {
@@ -140,7 +141,30 @@ void RegisterTilingBenchmarks() {
     }
 }
 
-// 3) Test "dimension" : balayage de la taille de grille pour la méthode "base"
+
+// 3) Test "idefix_tiling" : balayage (tx,ty,tz) pour la méthode "tiling"
+void RegisterIdefixTilingBenchmarks() {
+    std::vector<int> I = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+    std::vector<int> J = I;
+    std::vector<int> K = {1, 2, 4, 8, 16, 32, 64};
+    for (int tx : I) {
+        for (int ty : J) {
+            for (int tz : K) {
+                if (1LL * tx * ty * tz > 512) continue;
+                std::string name = "tiling/Tx" + std::to_string(tx)
+                                  + "_Ty" + std::to_string(ty)
+                                  + "_Tz" + std::to_string(tz);
+                ::benchmark::RegisterBenchmark(
+                    name.c_str(),
+                    [tx, ty, tz](benchmark::State& st) { FaceReconstructionImpl(st, "idefix_tiling", tx, ty, tz); }
+                )->Arg(320);
+            }
+        }
+    }
+}
+
+
+// 4) Test "dimension" : balayage de la taille de grille pour la méthode "base"
 void RegisterDimensionBenchmarks() {
     for (int n = 64; n <= 352; n += 32) {
         std::string name = "dimension/base/N" + std::to_string(n);

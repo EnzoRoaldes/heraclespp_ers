@@ -10,3 +10,8 @@ target_link_libraries(
     PUBLIC Kokkos::kokkos mesh utils
     INTERFACE MPI::MPI_CXX
 )
+
+# --- CUDA ---
+# if (Kokkos_ENABLE_CUDA)
+#     add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr>)
+#     target_link_libraries(hydro PRIVATE CUDA::cudart)

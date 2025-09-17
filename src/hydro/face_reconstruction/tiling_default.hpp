@@ -29,7 +29,7 @@ namespace novapp
 {
 
 template <typename SlopeLimiter>
-class FaceReconstructionTiling : public IFaceReconstruction
+class FaceReconstructionTilingDefault : public IFaceReconstruction
 {
 
 private:
@@ -37,7 +37,7 @@ private:
     bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionTiling(SlopeLimiter limiter, bool enable_timer = false) 
+    explicit FaceReconstructionTilingDefault(SlopeLimiter limiter, bool enable_timer = false) 
         : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
 
     void execute(
@@ -57,45 +57,6 @@ public:
         auto const& slope_limiter = m_slope_limiter;
 
         std::array<int, 3> m_tiling = {16, 2, 2}; // Default tiling
-
-        std::string filename = "./tiling.dat";
-        std::ifstream tiling_file(filename);
-        if (tiling_file) {
-            int ti, tj, tk;
-            tiling_file >> ti >> tj >> tk;
-            const_cast<std::array<int, 3>&>(m_tiling) = {ti, tj, tk};
-            // printf("Using tiling from %s: {%d, %d, %d}\n", filename.c_str(), ti, tj, tk);
-        }
-        else {
-            // printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
-        }
-
-
-    
-        // auto const [begin, end] = cell_range(range);
-
-        // // test de la policy par défaut (voir pour host et device !)
-        // using HostPolicy = Kokkos::MDRangePolicy<Kokkos::DefaultHostExecutionSpace, Kokkos::Rank<3>>;
-        // HostPolicy host_policy({begin[0], begin[1], begin[2]}, {end[0], end[1], end[2]});   
-
-        // using DevicePolicy = Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>;
-        // DevicePolicy device_policy({begin[0], begin[1], begin[2]}, {end[0], end[1], end[2]});
-
-        // auto host_tile_sizes = host_policy.tile_size_recommended();
-        // auto device_tile_sizes = device_policy.tile_size_recommended();
-
-        // printf("Recommended tile sizes (host): {%d, %d, %d}\n",
-        //     host_tile_sizes[0], host_tile_sizes[1], host_tile_sizes[2]);
-        // printf("Recommended tile sizes (device): {%d, %d, %d}\n",
-        //     device_tile_sizes[0], device_tile_sizes[1], device_tile_sizes[2]);
-
-        // printf("Max total tile size (host): %d\n", host_policy.max_total_tile_size());
-        // printf("Max total tile size (device): %d\n", device_policy.max_total_tile_size());
-
-
-
-
-
 
         if (m_enable_timer) {
             cudaEvent_t start, stop;
@@ -140,7 +101,7 @@ public:
             std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
             std::ofstream timing_file(filename, std::ios::app);
             if (timing_file) {
-                timing_file << "tiling" << " " << ms << " " << m_tiling[0] << " " << m_tiling[1] << " " << m_tiling[2] << "\n";
+                timing_file << "tiling_default" << " " << ms << " " << m_tiling[0] << " " << m_tiling[1] << " " << m_tiling[2] << "\n";
             }
 
             cudaEventDestroy(start);

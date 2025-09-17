@@ -18,6 +18,7 @@ int main(int argc, char** argv)
 
     RegisterVersionBenchmarks();
     RegisterTilingBenchmarks();
+    RegisterIdefixTilingBenchmarks();
     RegisterDimensionBenchmarks();
     // RegisterLaunchBoundsBenchmarks();
 

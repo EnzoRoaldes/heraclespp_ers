@@ -14,4 +14,6 @@ void RegisterVersionBenchmarks();
 
 void RegisterTilingBenchmarks();
 
+void RegisterIdefixTilingBenchmarks();
+
 void RegisterDimensionBenchmarks();

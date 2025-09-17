@@ -48,11 +48,15 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 : > ./exec_time_cudaEvent_face_reconstruction.dat
 
 METHODS=("base" \
+
          "idefix" "idefix_05" "idefix_unrolled_05_2" "idefix_unrolled_05_fma" \
          "idefix_unrolled_05" "idefix_unrolled_05_varijk" "idefix_unrolled" \
          "idefix_unrolled_preload_05" "idefix_unrolled_preloadall" "idefix_unrolled_preload" \
-         "tiling_05_varijk" "tiling_direct_mem" "tiling" "tiling_unrolled_05" \
+
+         "tiling_05_varijk" "tiling_direct_mem" "tiling_unrolled_05" \
          "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk" \
+         "tiling_default" "tiling_opti" \
+
          "tp_TeamThread" "tp_TeamThread_v2" "tp_TeamThreadMDR")
 # METHODS=("tiling_unrolled")
 

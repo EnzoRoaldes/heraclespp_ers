@@ -14,8 +14,11 @@
 #include "factory_face_reconstruction.hpp"
 
 #include "face_reconstruction/base.hpp"
+#include "face_reconstruction/cuda.cu"
 
 #include "face_reconstruction/tiling.hpp"
+#include "face_reconstruction/tiling_default.hpp"
+#include "face_reconstruction/tiling_opti.hpp"
 #include "face_reconstruction/tiling_varijk.hpp"
 #include "face_reconstruction/tiling_unrolled.hpp"
 #include "face_reconstruction/tiling_unrolled_05.hpp"
@@ -41,10 +44,11 @@
 #include "face_reconstruction/idefix_unrolled_05_fma.hpp"
 #include "face_reconstruction/idefix_unrolled_05_2.hpp"
 #include "face_reconstruction/idefix_05.hpp"
+// #include "face_reconstruction/idefix_tiling.hpp"
 
-#include "face_reconstruction/tp_TeamThread.hpp"
-#include "face_reconstruction/tp_TeamThread_v2.hpp"
-#include "face_reconstruction/tp_TeamThreadMDR.hpp"
+// #include "face_reconstruction/tp_TeamThread.hpp"
+// #include "face_reconstruction/tp_TeamThread_v2.hpp"
+// #include "face_reconstruction/tp_TeamThreadMDR.hpp"
 
 
 namespace novapp {
@@ -52,7 +56,10 @@ namespace novapp {
 std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(std::string const& name, bool enable_timer)
 {
     if (name == "base")                                     return std::make_unique<FaceReconstructionBase                                  <Minmod>>(Minmod(), enable_timer);
+    if (name == "cuda")                                     return std::make_unique<FaceReconstructionCuda                                  <Minmod>>(Minmod(), enable_timer);
 
+    if (name == "tiling_default")                           return std::make_unique<FaceReconstructionTilingDefault                         <Minmod>>(Minmod(), enable_timer);
+    if (name == "tiling_opti")                              return std::make_unique<FaceReconstructionTilingOpti                            <Minmod>>(Minmod(), enable_timer);
     if (name == "tiling")                                   return std::make_unique<FaceReconstructionTiling                                <Minmod>>(Minmod(), enable_timer);
     if (name == "tiling_direct_mem")                        return std::make_unique<FaceReconstructionTilingDirectMem                       <Minmod>>(Minmod(), enable_timer);
     if (name == "tiling_varijk")                            return std::make_unique<FaceReconstructionTilingVarijk                          <Minmod>>(Minmod(), enable_timer);
@@ -78,11 +85,13 @@ std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(std::string con
     if (name == "idefix_unrolled_preload")                  return std::make_unique<FaceReconstructionIdefixUnrolledPreload                 <Minmod>>(Minmod(), enable_timer);
     if (name == "idefix_unrolled_preload_05")               return std::make_unique<FaceReconstructionIdefixUnrolledPreload05               <Minmod>>(Minmod(), enable_timer);
     if (name == "idefix_unrolled_preloadall")               return std::make_unique<FaceReconstructionIdefixUnrolledPreloadAll              <Minmod>>(Minmod(), enable_timer);
+    // if (name == "idefix_tiling")                            return std::make_unique<FaceReconstructionIdefixTiling                          <Minmod>>(Minmod(), enable_timer);
+
     // if (name == "idefix_unrolled_preloadall_launchbounds")  return std::make_unique<FaceReconstructionIdefixUnrolledPreloadAllLaunchBounds <Minmod>>(Minmod(), enable_timer);
 
-    if (name == "tp_TeamThread")                             return std::make_unique<FaceReconstructionTPTT                                 <Minmod>>(Minmod(), enable_timer);
-    if (name == "tp_TeamThread_v2")                          return std::make_unique<FaceReconstructionTPTT2                                <Minmod>>(Minmod(), enable_timer);
-    if (name == "tp_TeamThreadMDR")                          return std::make_unique<FaceReconstructionTPTTMDR                              <Minmod>>(Minmod(), enable_timer);
+    // if (name == "tp_TeamThread")                             return std::make_unique<FaceReconstructionTPTT                                 <Minmod>>(Minmod(), enable_timer);
+    // if (name == "tp_TeamThread_v2")                          return std::make_unique<FaceReconstructionTPTT2                                <Minmod>>(Minmod(), enable_timer);
+    // if (name == "tp_TeamThreadMDR")                          return std::make_unique<FaceReconstructionTPTTMDR                              <Minmod>>(Minmod(), enable_timer);
 
     throw std::runtime_error("Unknown face reconstruction implementation: " + name);
 }

@@ -23,7 +23,7 @@
 #include <ndim.hpp>
 #include <range.hpp>
 
-#include "../idefix_utils.hpp"
+#include "../parallel_for.hpp"
 #include "../face_reconstruction.hpp"
 #include "slope_limiters.hpp"
 
