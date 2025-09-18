@@ -34,11 +34,10 @@ class FaceReconstructionTPTT : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionTPTT(SlopeLimiter limiter, bool enable_timer = false)
-        : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
+    explicit FaceReconstructionTPTT(SlopeLimiter limiter)
+        : m_slope_limiter(limiter) {}
 
     void execute(
         Range const& range,
@@ -85,113 +84,47 @@ public:
 
         team_policy policy(Nk, Kokkos::AUTO);
 
-        // policy.team_size(); a faire
-        if (m_enable_timer) {
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            cudaEventRecord(start);
+        Kokkos::parallel_for(
+            "face_reconstruction",
+            policy,
+            KOKKOS_LAMBDA(const member_type& teamMember) {
+                const int k = teamMember.league_rank(); // une équipe = une valeur de k
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(teamMember, Ni * Nj),
+                    [=] (const int t) {
 
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                policy,
-                KOKKOS_LAMBDA(const member_type& teamMember) {
-                    const int k = teamMember.league_rank(); // une équipe = une valeur de k
-                    Kokkos::parallel_for(
-                        Kokkos::TeamThreadRange(teamMember, Ni * Nj), // inverser les 2 boucles // donner début et end
-                        [=] (const int t) {
+                        int j = t / Ni;
+                        int i = t % Ni;
 
-                            int j = t / Ni;
-                            int i = t - j * Ni;
+                        int ii = bi + i;
+                        int jj = bj + j;
+                        int kk = bk + k;
 
-                            int ii = bi + i;
-                            int jj = bj + j;
-                            int kk = bk + k;
+                        for (int idim = 0; idim < ndim; ++idim) {
+                            auto const [i_m, j_m, k_m] = lindex(idim, ii, jj, kk); // ii - 1
+                            auto const [i_p, j_p, k_p] = rindex(idim, ii, jj, kk); // ii + 1
 
-                            for (int idim = 0; idim < ndim; ++idim) {
-                                auto const [i_m, j_m, k_m] = lindex(idim, ii, jj, kk); // ii - 1
-                                auto const [i_p, j_p, k_p] = rindex(idim, ii, jj, kk); // ii + 1
+                            double const dl   = kron(idim,0) * dx(ii)
+                                                + kron(idim,1) * dy(jj)
+                                                + kron(idim,2) * dz(kk);
+                            double const dl_m = kron(idim,0) * dx(i_m)
+                                                + kron(idim,1) * dy(j_m)
+                                                + kron(idim,2) * dz(k_m);
+                            double const dl_p = kron(idim,0) * dx(i_p)
+                                                + kron(idim,1) * dy(j_p)
+                                                + kron(idim,2) * dz(k_p);
 
-                                double const dl   = kron(idim,0) * dx(ii)
-                                                  + kron(idim,1) * dy(jj)
-                                                  + kron(idim,2) * dz(kk);
-                                double const dl_m = kron(idim,0) * dx(i_m)
-                                                  + kron(idim,1) * dy(j_m)
-                                                  + kron(idim,2) * dz(k_m);
-                                double const dl_p = kron(idim,0) * dx(i_p)
-                                                  + kron(idim,1) * dy(j_p)
-                                                  + kron(idim,2) * dz(k_p);
+                            double const slope = slope_limiter(
+                                (var(i_p, j_p, k_p) - var(ii, jj, kk)) / ((dl + dl_p) / 2),
+                                (var(ii, jj, kk) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
 
-                                double const slope = slope_limiter(
-                                    (var(i_p, j_p, k_p) - var(ii, jj, kk)) / ((dl + dl_p) / 2),
-                                    (var(ii, jj, kk) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
-
-                                var_rec(ii, jj, kk, 0, idim) =  var(ii, jj, kk) - (dl / 2) * slope;
-                                var_rec(ii, jj, kk, 1, idim) =  var(ii, jj, kk) + (dl / 2) * slope;
-                            }
+                            var_rec(ii, jj, kk, 0, idim) =  var(ii, jj, kk) - (dl / 2) * slope;
+                            var_rec(ii, jj, kk, 1, idim) =  var(ii, jj, kk) + (dl / 2) * slope;
                         }
-                    );
-                }
-            );
-
-            // Kokkos::fence(); /// test
-
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float ms = 0;
-            cudaEventElapsedTime(&ms, start, stop);
-
-            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
-            std::ofstream timing_file(filename, std::ios::app);if (timing_file) {
-                timing_file << "tp_TeamThread" << " " << ms << " " << dimension[0] << " " << dimension[1] << " " << dimension[2] << "\n";
+                    }
+                );
             }
-
-            cudaEventDestroy(start);
-            cudaEventDestroy(stop);
-
-        } else {
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                policy,
-                KOKKOS_LAMBDA(const member_type& teamMember) {
-                    const int k = teamMember.league_rank(); // une équipe = une valeur de k
-                    Kokkos::parallel_for(
-                        Kokkos::TeamThreadRange(teamMember, Ni * Nj),
-                        [=] (const int t) {
-
-                            int j = t / Ni;
-                            int i = t % Ni;
-
-                            int ii = bi + i;
-                            int jj = bj + j;
-                            int kk = bk + k;
-
-                            for (int idim = 0; idim < ndim; ++idim) {
-                                auto const [i_m, j_m, k_m] = lindex(idim, ii, jj, kk); // ii - 1
-                                auto const [i_p, j_p, k_p] = rindex(idim, ii, jj, kk); // ii + 1
-
-                                double const dl   = kron(idim,0) * dx(ii)
-                                                  + kron(idim,1) * dy(jj)
-                                                  + kron(idim,2) * dz(kk);
-                                double const dl_m = kron(idim,0) * dx(i_m)
-                                                  + kron(idim,1) * dy(j_m)
-                                                  + kron(idim,2) * dz(k_m);
-                                double const dl_p = kron(idim,0) * dx(i_p)
-                                                  + kron(idim,1) * dy(j_p)
-                                                  + kron(idim,2) * dz(k_p);
-
-                                double const slope = slope_limiter(
-                                    (var(i_p, j_p, k_p) - var(ii, jj, kk)) / ((dl + dl_p) / 2),
-                                    (var(ii, jj, kk) - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
-
-                                var_rec(ii, jj, kk, 0, idim) =  var(ii, jj, kk) - (dl / 2) * slope;
-                                var_rec(ii, jj, kk, 1, idim) =  var(ii, jj, kk) + (dl / 2) * slope;
-                            }
-                        }
-                    );
-                }
-            );
-        }
+        );
     }
 };
 

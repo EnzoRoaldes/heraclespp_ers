@@ -51,7 +51,7 @@ std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(std::string con
         return std::make_unique<LimitedLinearReconstruction<VanAlbada>>(VanAlbada());
     }
 
-    throw std::runtime_error("Unknown face reconstruction algorithm: " + slope + ".");
+    throw std::runtime_error("Unknown face reconstruction algorithm LA: " + slope + ".");
 }
 
 } // namespace novapp

@@ -2,13 +2,13 @@
 
 namespace benchmark { class State; }
 
-// static void BM_FaceReconstruction_LB(benchmark::State& st);
+// static void BM_FaceReconstruction_LB(benchmark::State&);
 
-void set_constant_bytes_processed(benchmark::State& state, std::size_t const bytes);
+void set_constant_bytes_processed(benchmark::State&, std::size_t const);
 
-void set_constant_cells_processed(benchmark::State& state, std::size_t const cells);
+void set_constant_cells_processed(benchmark::State&, std::size_t const);
 
-void FaceReconstruction(benchmark::State& state, std::string const& method, int tx, int ty, int tz);
+// void FaceReconstructionImpl(benchmark::State&, std::string const&, int, int, int);
 
 void RegisterVersionBenchmarks();
 

@@ -18,8 +18,8 @@ int main(int argc, char** argv)
 
     RegisterVersionBenchmarks();
     RegisterTilingBenchmarks();
-    RegisterIdefixTilingBenchmarks();
     RegisterDimensionBenchmarks();
+    // RegisterIdefixTilingBenchmarks();
     // RegisterLaunchBoundsBenchmarks();
 
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) {

@@ -74,12 +74,41 @@ __global__ __maxnreg__(Nreg) void for_loop_3D(F const functor, const dim3 ib, co
     }
 }
 
+// template<int Nreg, class F>
+// __global__ __maxnreg__(Nreg)
+// void for_loop_3D(F const functor, const dim3 ib, const dim3 ie) {
+//     // cache des builtins dans des registres (une seule fois)
+//     const int bdx = blockDim.x, bdy = blockDim.y, bdz = blockDim.z;
+//     const int gdx = gridDim.x,  gdy = gridDim.y,  gdz = gridDim.z;
+//     const int tix = threadIdx.x, tiy = threadIdx.y, tiz = threadIdx.z;
+//     const int bix = blockIdx.x, biy = blockIdx.y, biz = blockIdx.z;
+
+//     // points de départ et strides (évite recomputes)
+//     const int i0 = ib.x + bdx * bix + tix;
+//     const int j0 = ib.y + bdy * biy + tiy;
+//     const int k0 = ib.z + bdz * biz + tiz;
+//     const int istep = bdx * gdx;
+//     const int jstep = bdy * gdy;
+//     const int kstep = bdz * gdz;
+
+//     // boucles compactes (moins de variables vivantes)
+//     for (int i = i0; i < ie.x; i += istep) {
+//         for (int j = j0; j < ie.y; j += jstep) {
+//             for (int k = k0; k < ie.z; k += kstep) {
+//                 functor(i, j, k);
+//             }
+//         }
+//     }
+// }
+
+
 template<int Nreg, class F>
 void parallel_for_3D(std::array<int, 3> ib, std::array<int, 3> ie, F functor)
 {
     dim3 ib_new(ib[0], ib[1], ib[2]);
     dim3 ie_new(ie[0], ie[1], ie[2]);
-    dim3 blocksPerGrid(19, 65, 129);
+    // dim3 blocksPerGrid(19, 65, 129); // ancienne grille pour (256,128,256)
+    dim3 blocksPerGrid(21, 161, 161); // nouvelle grille pour (320,320,320)
     dim3 threadsPerBlock(32, 2, 1);
     for_loop_3D<Nreg><<<blocksPerGrid, threadsPerBlock>>>(functor, ib_new, ie_new);
 }

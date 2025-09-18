@@ -34,11 +34,10 @@ class FaceReconstructionTilingUnrolled05 : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionTilingUnrolled05(SlopeLimiter limiter, bool enable_timer = false) 
-        : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
+    explicit FaceReconstructionTilingUnrolled05(SlopeLimiter limiter) 
+        : m_slope_limiter(limiter) {}
 
     void execute(
         Range const& range,
@@ -70,105 +69,44 @@ public:
             // printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
         }
 
-        if (m_enable_timer) {
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            cudaEventRecord(start);
-
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                cell_mdrange_tiling(range, m_tiling),
-                KOKKOS_LAMBDA(int i, int j, int k)
-                {
-                    // IDIM=0
-                    {                
-                        double const slope = slope_limiter(      
-                            (var(i+1, j, k) - var(i, j, k)) / ((dx(i) + dx(i+1)) * 0.5),
-                            (var(i, j, k) - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
-                    
-                        var_rec(i, j, k, 0, 0) =  var(i, j, k) - (dx(i) * 0.5) * slope;
-                        var_rec(i, j, k, 1, 0) =  var(i, j, k) + (dx(i) * 0.5) * slope;
-                    }
-
-
-                    // IDIM=1
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j+1, k) - var(i, j, k)) / ((dy(j) + dy(j+1)) * 0.5),
-                            (var(i, j, k) - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
-                    
-                        var_rec(i, j, k, 0, 1) =  var(i, j, k) - (dy(j) * 0.5) * slope;
-                        var_rec(i, j, k, 1, 1) =  var(i, j, k) + (dy(j) * 0.5) * slope;
-                    }
-
-
-                    // IDIM=2
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
-                            (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
-                    
-                        var_rec(i, j, k, 0, 2) =  var(i, j, k) - (dz(k) * 0.5) * slope;
-                        var_rec(i, j, k, 1, 2) =  var(i, j, k) + (dz(k) * 0.5) * slope;
-                    }
+        Kokkos::parallel_for(
+            "face_reconstruction",
+            cell_mdrange_tiling(range, m_tiling),
+            KOKKOS_LAMBDA(int i, int j, int k)
+            {
+                // IDIM=0
+                {                
+                    double const slope = slope_limiter(      
+                        (var(i+1, j, k) - var(i, j, k)) / ((dx(i) + dx(i+1)) * 0.5),
+                        (var(i, j, k) - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
+                
+                    var_rec(i, j, k, 0, 0) =  var(i, j, k) - (dx(i) * 0.5) * slope;
+                    var_rec(i, j, k, 1, 0) =  var(i, j, k) + (dx(i) * 0.5) * slope;
                 }
-            );
 
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float ms = 0;
-            cudaEventElapsedTime(&ms, start, stop);
 
-            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
-            std::ofstream timing_file(filename, std::ios::app);
-            if (timing_file) {
-                timing_file << "tiling_unrolled_05" << " " << ms << "\n";
+                // IDIM=1
+                {
+                    double const slope = slope_limiter(      
+                        (var(i, j+1, k) - var(i, j, k)) / ((dy(j) + dy(j+1)) * 0.5),
+                        (var(i, j, k) - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
+                
+                    var_rec(i, j, k, 0, 1) =  var(i, j, k) - (dy(j) * 0.5) * slope;
+                    var_rec(i, j, k, 1, 1) =  var(i, j, k) + (dy(j) * 0.5) * slope;
+                }
+
+
+                // IDIM=2
+                {
+                    double const slope = slope_limiter(      
+                        (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
+                        (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
+                
+                    var_rec(i, j, k, 0, 2) =  var(i, j, k) - (dz(k) * 0.5) * slope;
+                    var_rec(i, j, k, 1, 2) =  var(i, j, k) + (dz(k) * 0.5) * slope;
+                }
             }
-
-            cudaEventDestroy(start);
-            cudaEventDestroy(stop);
-        } else {
-
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                cell_mdrange_tiling(range, m_tiling),
-                KOKKOS_LAMBDA(int i, int j, int k)
-                {
-                    // IDIM=0
-                    {                
-                        double const slope = slope_limiter(      
-                            (var(i+1, j, k) - var(i, j, k)) / ((dx(i) + dx(i+1)) * 0.5),
-                            (var(i, j, k) - var(i-1, j, k)) / ((dx(i-1) + dx(i)) * 0.5));
-                    
-                        var_rec(i, j, k, 0, 0) =  var(i, j, k) - (dx(i) * 0.5) * slope;
-                        var_rec(i, j, k, 1, 0) =  var(i, j, k) + (dx(i) * 0.5) * slope;
-                    }
-
-
-                    // IDIM=1
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j+1, k) - var(i, j, k)) / ((dy(j) + dy(j+1)) * 0.5),
-                            (var(i, j, k) - var(i, j-1, k)) / ((dy(j-1) + dy(j)) * 0.5));
-                    
-                        var_rec(i, j, k, 0, 1) =  var(i, j, k) - (dy(j) * 0.5) * slope;
-                        var_rec(i, j, k, 1, 1) =  var(i, j, k) + (dy(j) * 0.5) * slope;
-                    }
-
-
-                    // IDIM=2
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j, k+1) - var(i, j, k)) / ((dz(k) + dz(k+1)) * 0.5),
-                            (var(i, j, k) - var(i, j, k-1)) / ((dz(k-1) + dz(k)) * 0.5));
-                    
-                        var_rec(i, j, k, 0, 2) =  var(i, j, k) - (dz(k) * 0.5) * slope;
-                        var_rec(i, j, k, 1, 2) =  var(i, j, k) + (dz(k) * 0.5) * slope;
-                    }
-                }
-            );
-        }
+        );
     }
 };
 

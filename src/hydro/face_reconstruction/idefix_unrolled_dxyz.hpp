@@ -39,11 +39,10 @@ class FaceReconstructionIdefixUnrolledDxyz : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionIdefixUnrolledDxyz(SlopeLimiter limiter, bool enable_timer = false) 
-        : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
+    explicit FaceReconstructionIdefixUnrolledDxyz(SlopeLimiter limiter) 
+        : m_slope_limiter(limiter) {}
 
     void execute(
         Range const& range,
@@ -64,145 +63,64 @@ public:
         auto grid_dz = grid.dz;
         
         auto const [begin, end] = cell_range(range);
-        
-        if (m_enable_timer) {
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            cudaEventRecord(start);
 
-            KV_double_1d dx("dx_scaled", end[0] - begin[0]+1);
-            Kokkos::parallel_for("scale_dx", end[0] - begin[0]+1, KOKKOS_LAMBDA(const int i) 
+        KV_double_1d dx("dx_scaled", end[0] - begin[0]+1);
+        Kokkos::parallel_for("scale_dx", end[0] - begin[0]+1, KOKKOS_LAMBDA(const int i) 
+        {
+            dx(i) = 0.5 * grid_dx(i);
+        });
+
+        KV_double_1d dy("dy_scaled", end[1] - begin[1]+1);
+        Kokkos::parallel_for("scale_dy", end[1] - begin[1]+1, KOKKOS_LAMBDA(const int i) 
+        {
+            dy(i) = 0.5 * grid_dy(i);
+        });
+
+        KV_double_1d dz("dz_scaled", end[2] - begin[2]+1);
+        Kokkos::parallel_for("scale_dz", end[2] - begin[2]+1, KOKKOS_LAMBDA(const int i) 
+        {
+            dz(i) = 0.5 * grid_dz(i);
+        });
+
+        idefix_for(
+            "idefix_for",
+            begin[0],end[0],begin[1],end[1],begin[2],end[2],
+            KOKKOS_LAMBDA(int i, int j, int k)
             {
-                dx(i) = 0.5 * grid_dx(i);
-            });
 
-            KV_double_1d dy("dy_scaled", end[1] - begin[1]+1);
-            Kokkos::parallel_for("scale_dy", end[1] - begin[1]+1, KOKKOS_LAMBDA(const int i) 
-            {
-                dy(i) = 0.5 * grid_dy(i);
-            });
-
-            KV_double_1d dz("dz_scaled", end[2] - begin[2]+1);
-            Kokkos::parallel_for("scale_dz", end[2] - begin[2]+1, KOKKOS_LAMBDA(const int i) 
-            {
-                dz(i) = 0.5 * grid_dz(i);
-            });
-
-            idefix_for(
-                "idefix_for",
-                begin[0],end[0],begin[1],end[1],begin[2],end[2],
-                KOKKOS_LAMBDA(int i, int j, int k)
-                {
-
-                    // IDIM=0
-                    {                
-                        double const slope = slope_limiter(      
-                            (var(i+1, j, k) - var(i, j, k)) / (dx(i) + dx(i+1)),
-                            (var(i, j, k) - var(i-1, j, k)) / (dx(i-1) + dx(i)));
-                    
-                        var_rec(i, j, k, 0, 0) =  var(i, j, k) - dx(i) * slope;
-                        var_rec(i, j, k, 1, 0) =  var(i, j, k) + dx(i) * slope;
-                    }
-
-
-                    // IDIM=1
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j+1, k) - var(i, j, k)) / (dy(j) + dy(j+1)),
-                            (var(i, j, k) - var(i, j-1, k)) / (dy(j-1) + dy(j)));
-                    
-                        var_rec(i, j, k, 0, 1) =  var(i, j, k) - dy(j) * slope;
-                        var_rec(i, j, k, 1, 1) =  var(i, j, k) + dy(j) * slope;
-                    }
-
-
-                    // IDIM=2
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j, k+1) - var(i, j, k)) / (dz(k) + dz(k+1)),
-                            (var(i, j, k) - var(i, j, k-1)) / (dz(k-1) + dz(k)));
-                    
-                        var_rec(i, j, k, 0, 2) =  var(i, j, k) - dz(k) * slope;
-                        var_rec(i, j, k, 1, 2) =  var(i, j, k) + dz(k) * slope;
-                    }
+                // IDIM=0
+                {                
+                    double const slope = slope_limiter(      
+                        (var(i+1, j, k) - var(i, j, k)) / (dx(i) + dx(i+1)),
+                        (var(i, j, k) - var(i-1, j, k)) / (dx(i-1) + dx(i)));
+                
+                    var_rec(i, j, k, 0, 0) =  var(i, j, k) - dx(i) * slope;
+                    var_rec(i, j, k, 1, 0) =  var(i, j, k) + dx(i) * slope;
                 }
-            );
 
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float ms = 0;
-            cudaEventElapsedTime(&ms, start, stop);
 
-            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
-            std::ofstream timing_file(filename, std::ios::app);
-            if (timing_file) {
-                timing_file << "idefix_unrolled_dxyz" << " " << ms << "\n";
+                // IDIM=1
+                {
+                    double const slope = slope_limiter(      
+                        (var(i, j+1, k) - var(i, j, k)) / (dy(j) + dy(j+1)),
+                        (var(i, j, k) - var(i, j-1, k)) / (dy(j-1) + dy(j)));
+                
+                    var_rec(i, j, k, 0, 1) =  var(i, j, k) - dy(j) * slope;
+                    var_rec(i, j, k, 1, 1) =  var(i, j, k) + dy(j) * slope;
+                }
+
+
+                // IDIM=2
+                {
+                    double const slope = slope_limiter(      
+                        (var(i, j, k+1) - var(i, j, k)) / (dz(k) + dz(k+1)),
+                        (var(i, j, k) - var(i, j, k-1)) / (dz(k-1) + dz(k)));
+                
+                    var_rec(i, j, k, 0, 2) =  var(i, j, k) - dz(k) * slope;
+                    var_rec(i, j, k, 1, 2) =  var(i, j, k) + dz(k) * slope;
+                }
             }
-            
-            cudaEventDestroy(start);
-            cudaEventDestroy(stop);
-
-        } else {
-
-                KV_double_1d dx("dx_scaled", end[0] - begin[0]+1);
-            Kokkos::parallel_for("scale_dx", end[0] - begin[0]+1, KOKKOS_LAMBDA(const int i) 
-            {
-                dx(i) = 0.5 * grid_dx(i);
-            });
-
-            KV_double_1d dy("dy_scaled", end[1] - begin[1]+1);
-            Kokkos::parallel_for("scale_dy", end[1] - begin[1]+1, KOKKOS_LAMBDA(const int i) 
-            {
-                dy(i) = 0.5 * grid_dy(i);
-            });
-
-            KV_double_1d dz("dz_scaled", end[2] - begin[2]+1);
-            Kokkos::parallel_for("scale_dz", end[2] - begin[2]+1, KOKKOS_LAMBDA(const int i) 
-            {
-                dz(i) = 0.5 * grid_dz(i);
-            });
-
-            idefix_for(
-                "idefix_for",
-                begin[0],end[0],begin[1],end[1],begin[2],end[2],
-                KOKKOS_LAMBDA(int i, int j, int k)
-                {
-
-                    // IDIM=0
-                    {                
-                        double const slope = slope_limiter(      
-                            (var(i+1, j, k) - var(i, j, k)) / (dx(i) + dx(i+1)),
-                            (var(i, j, k) - var(i-1, j, k)) / (dx(i-1) + dx(i)));
-                    
-                        var_rec(i, j, k, 0, 0) =  var(i, j, k) - dx(i) * slope;
-                        var_rec(i, j, k, 1, 0) =  var(i, j, k) + dx(i) * slope;
-                    }
-
-
-                    // IDIM=1
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j+1, k) - var(i, j, k)) / (dy(j) + dy(j+1)),
-                            (var(i, j, k) - var(i, j-1, k)) / (dy(j-1) + dy(j)));
-                    
-                        var_rec(i, j, k, 0, 1) =  var(i, j, k) - dy(j) * slope;
-                        var_rec(i, j, k, 1, 1) =  var(i, j, k) + dy(j) * slope;
-                    }
-
-
-                    // IDIM=2
-                    {
-                        double const slope = slope_limiter(      
-                            (var(i, j, k+1) - var(i, j, k)) / (dz(k) + dz(k+1)),
-                            (var(i, j, k) - var(i, j, k-1)) / (dz(k-1) + dz(k)));
-                    
-                        var_rec(i, j, k, 0, 2) =  var(i, j, k) - dz(k) * slope;
-                        var_rec(i, j, k, 1, 2) =  var(i, j, k) + dz(k) * slope;
-                    }
-                }
-            );
-        }
+        );
         // Kokkos::Profiling::popRegion();
     }
 };

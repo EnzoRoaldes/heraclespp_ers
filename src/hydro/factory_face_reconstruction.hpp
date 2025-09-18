@@ -17,5 +17,5 @@
 
 namespace novapp 
 {
-std::unique_ptr<IFaceReconstruction> factory_face_reconstruction(std::string const& name, bool enable_timer);
+std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name);
 } // namespace novapp

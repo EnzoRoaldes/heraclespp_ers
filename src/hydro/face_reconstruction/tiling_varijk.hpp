@@ -34,11 +34,10 @@ class FaceReconstructionTilingVarijk : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionTilingVarijk(SlopeLimiter limiter, bool enable_timer = false) 
-        : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
+    explicit FaceReconstructionTilingVarijk(SlopeLimiter limiter) 
+        : m_slope_limiter(limiter) {}
 
     void execute(
         Range const& range,
@@ -70,87 +69,35 @@ public:
             // printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
         }
 
-        if (m_enable_timer) {
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            cudaEventRecord(start);
-
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                cell_mdrange_tiling(range, m_tiling),
-                KOKKOS_LAMBDA(int i, int j, int k)
+        Kokkos::parallel_for(
+            "face_reconstruction",
+            cell_mdrange_tiling(range, m_tiling),
+            KOKKOS_LAMBDA(int i, int j, int k)
+            {
+                const double var_ijk = var(i, j, k);
+                for (int idim = 0; idim < ndim; ++idim)
                 {
-                    const double var_ijk = var(i, j, k);
-                    for (int idim = 0; idim < ndim; ++idim)
-                    {
-                        auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
-                        auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                        double const dl = kron(idim,0) * dx(i)
-                                        + kron(idim,1) * dy(j)
-                                        + kron(idim,2) * dz(k);
-                        double const dl_m = kron(idim,0) * dx(i_m)
-                                            + kron(idim,1) * dy(j_m)
-                                            + kron(idim,2) * dz(k_m);
-                        double const dl_p = kron(idim,0) * dx(i_p)
-                                            + kron(idim,1) * dy(j_p)
-                                            + kron(idim,2) * dz(k_p);
+                    auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
+                    auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
+                    double const dl = kron(idim,0) * dx(i)
+                                    + kron(idim,1) * dy(j)
+                                    + kron(idim,2) * dz(k);
+                    double const dl_m = kron(idim,0) * dx(i_m)
+                                        + kron(idim,1) * dy(j_m)
+                                        + kron(idim,2) * dz(k_m);
+                    double const dl_p = kron(idim,0) * dx(i_p)
+                                        + kron(idim,1) * dy(j_p)
+                                        + kron(idim,2) * dz(k_p);
 
-                        double const slope = slope_limiter(
-                            (var(i_p, j_p, k_p) - var_ijk) / ((dl + dl_p) / 2),
-                            (var_ijk - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
+                    double const slope = slope_limiter(
+                        (var(i_p, j_p, k_p) - var_ijk) / ((dl + dl_p) / 2),
+                        (var_ijk - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
 
-                        var_rec(i, j, k, 0, idim) =  var_ijk - (dl / 2) * slope;
-                        var_rec(i, j, k, 1, idim) =  var_ijk + (dl / 2) * slope;
-                    }
+                    var_rec(i, j, k, 0, idim) =  var_ijk - (dl / 2) * slope;
+                    var_rec(i, j, k, 1, idim) =  var_ijk + (dl / 2) * slope;
                 }
-            );
-
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float ms = 0;
-            cudaEventElapsedTime(&ms, start, stop);
-
-            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
-            std::ofstream timing_file(filename, std::ios::app);
-            if (timing_file) {
-                timing_file << "tiling_varijk" << " " << ms << "\n";
-            }            
-            
-            cudaEventDestroy(start);
-            cudaEventDestroy(stop);
-        } else {
-
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                cell_mdrange_tiling(range, m_tiling),
-                KOKKOS_LAMBDA(int i, int j, int k)
-                {
-                    const double var_ijk = var(i, j, k);
-                    for (int idim = 0; idim < ndim; ++idim)
-                    {
-                        auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
-                        auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                        double const dl = kron(idim,0) * dx(i)
-                                        + kron(idim,1) * dy(j)
-                                        + kron(idim,2) * dz(k);
-                        double const dl_m = kron(idim,0) * dx(i_m)
-                                            + kron(idim,1) * dy(j_m)
-                                            + kron(idim,2) * dz(k_m);
-                        double const dl_p = kron(idim,0) * dx(i_p)
-                                            + kron(idim,1) * dy(j_p)
-                                            + kron(idim,2) * dz(k_p);
-
-                        double const slope = slope_limiter(
-                            (var(i_p, j_p, k_p) - var_ijk) / ((dl + dl_p) / 2),
-                            (var_ijk - var(i_m, j_m, k_m)) / ((dl_m + dl) / 2));
-
-                        var_rec(i, j, k, 0, idim) =  var_ijk - (dl / 2) * slope;
-                        var_rec(i, j, k, 1, idim) =  var_ijk + (dl / 2) * slope;
-                    }
-                }
-            );
-        }
+            }
+        );
     }
 };
 

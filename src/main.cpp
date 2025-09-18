@@ -307,17 +307,9 @@ void main(int argc, char** argv)
         }
     }
 
-    bool enable_timer = false;
-    // Parse command line for --timer
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--timer") {
-            enable_timer = true;
-        }
-    }
-
     // Use the selected implementation
     std::unique_ptr<IFaceReconstruction> face_reconstruction
-            = factory_face_reconstruction(face_reconstruction_impl, enable_timer);
+            = new_factory_face_reconstruction(face_reconstruction_impl);
 
     std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
             = std::make_unique<ExtrapolationTimeReconstruction<EOS, Gravity>>(eos);

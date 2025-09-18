@@ -20,7 +20,7 @@ namespace {
 
 std::vector<std::string> const methods = {
     "base", "cuda",
-    
+
     "idefix", "idefix_05", "idefix_unrolled", "idefix_unrolled_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
     "idefix_unrolled_05_varijk", "idefix_unrolled_preload", "idefix_unrolled_preload_05", "idefix_unrolled_preloadall",
 
@@ -40,6 +40,7 @@ void set_constant_cells_processed(benchmark::State& state, std::size_t const cel
 {
     state.counters["cells_per_second"] = benchmark::Counter(static_cast<double>(cells), benchmark::Counter::kIsIterationInvariantRate);
 }
+
 
 void FaceReconstructionImpl(benchmark::State& state, std::string const& method, int tx, int ty, int tz)
 {
@@ -75,8 +76,8 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
     Kokkos::deep_copy(rho, 1);
     Kokkos::deep_copy(rho_rec, -1);
 
-    std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::factory_face_reconstruction(method, false);
-
+    std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::new_factory_face_reconstruction(method);
+    
     novapp::Range const range = grid.range.no_ghosts();
     Kokkos::fence();
     for ([[maybe_unused]] auto _ : state) {
@@ -85,9 +86,9 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
     }
 
     std::size_t const cells = (static_cast<std::size_t>(nx) * ny) * nz;
-
+    
     set_constant_cells_processed(state, cells);
-
+    
     set_constant_bytes_processed(state, sizeof(double) * (1 + novapp::ndim * 2) * cells);
 }
 
@@ -113,7 +114,7 @@ void RegisterVersionBenchmarks() {
             name.c_str(),
             [method](benchmark::State& st) {
                 // tx,ty,tz à 0 par défaut ; si method=="tiling", le fichier tiling.dat sera écrit.
-                FaceReconstructionImpl(st, method, 0, 0, 0);
+                ::FaceReconstructionImpl(st, method, 0, 0, 0);
             }
         )->Arg(320);
     }
@@ -130,11 +131,13 @@ void RegisterTilingBenchmarks() {
             for (int tz : K) {
                 if (1LL * tx * ty * tz > 512) continue;
                 std::string name = "tiling/Tx" + std::to_string(tx)
-                                  + "_Ty" + std::to_string(ty)
-                                  + "_Tz" + std::to_string(tz);
+                + "_Ty" + std::to_string(ty)
+                + "_Tz" + std::to_string(tz);
                 ::benchmark::RegisterBenchmark(
                     name.c_str(),
-                    [tx, ty, tz](benchmark::State& st) { FaceReconstructionImpl(st, "tiling", tx, ty, tz); }
+                    [tx, ty, tz](benchmark::State& st) { 
+                        ::FaceReconstructionImpl(st, "tiling", tx, ty, tz); 
+                    }
                 )->Arg(320);
             }
         }
@@ -142,55 +145,33 @@ void RegisterTilingBenchmarks() {
 }
 
 
-// 3) Test "idefix_tiling" : balayage (tx,ty,tz) pour la méthode "tiling"
-void RegisterIdefixTilingBenchmarks() {
-    std::vector<int> I = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
-    std::vector<int> J = I;
-    std::vector<int> K = {1, 2, 4, 8, 16, 32, 64};
-    for (int tx : I) {
-        for (int ty : J) {
-            for (int tz : K) {
-                if (1LL * tx * ty * tz > 512) continue;
-                std::string name = "tiling/Tx" + std::to_string(tx)
-                                  + "_Ty" + std::to_string(ty)
-                                  + "_Tz" + std::to_string(tz);
-                ::benchmark::RegisterBenchmark(
-                    name.c_str(),
-                    [tx, ty, tz](benchmark::State& st) { FaceReconstructionImpl(st, "idefix_tiling", tx, ty, tz); }
-                )->Arg(320);
-            }
-        }
-    }
-}
-
-
-// 4) Test "dimension" : balayage de la taille de grille pour la méthode "base"
+// 3) Test "dimension" : balayage de la taille de grille pour la méthode "base"
 void RegisterDimensionBenchmarks() {
     for (int n = 64; n <= 352; n += 32) {
         std::string name = "dimension/base/N" + std::to_string(n);
         ::benchmark::RegisterBenchmark(
             name.c_str(),
             [n](benchmark::State& st) {
-                    FaceReconstructionImpl(st, "base", 0, 0, 0);
-                }
+                ::FaceReconstructionImpl(st, "base", 0, 0, 0); 
+            }
         )->Arg(n);
     }
 }
 
 
 // POUR LAUNCH BOUNDS
-// // 4) Test "launchbounds" : balayage des launch bounds
+// // 5) Test "launchbounds" : balayage des launch bounds
 // void RegisterLaunchBoundsBenchmarks() {
 //     #define REG_LB(TB,MB) do {                                                                  \
 //         std::string name = "launchbounds/TB" + std::to_string(TB) + "_MB" + std::to_string(MB); \
 //         ::benchmark::RegisterBenchmark(                                                         \
 //             name.c_str(),                                                                       \
 //             [](benchmark::State& st){                                                           \
-//                 BM_FaceReconstruction_LB<TB,MB>(st);                                            \
+//                 ::BM_FaceReconstruction_LB<TB,MB>(st);                                            \
 //             }                                                                                   \
 //         )->Arg(320);                                                                            \
 //     } while (0)
-        
+
 //     REG_LB(128,2);
 //     REG_LB(256,2);
 //     REG_LB(512,1);
@@ -205,10 +186,11 @@ void RegisterDimensionBenchmarks() {
 //             ::benchmark::RegisterBenchmark(
 //                 name.c_str(),
 //                 [tb, mb](benchmark::State& st) {
-//                     FaceReconstructionImpl(st, "tiling_unrolled_05_preloadall_launchbounds", tb, mb);
-//                     BM_FaceReconstruction_LB<tb, mb>(st);
+//                     ::FaceReconstructionImpl(st, "tiling_unrolled_05_preloadall_launchbounds", tb, mb);
+//                     ::BM_FaceReconstruction_LB<tb, mb>(st);
 //                 }
 //             )->Arg(320);
 //         }
 //     }
 // }
+            

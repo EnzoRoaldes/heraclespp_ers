@@ -60,7 +60,8 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 #         "idefix_unrolled_dxyz" "idefix_unrolled" "idefix_unrolled_preload_05" "idefix_unrolled_preloadall" "idefix_unrolled_preload" \
 #         "tiling_05_varijk" "tiling_direct_mem" "tiling_opti" "tiling_default" "tiling_unrolled_05" "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
 
-METHODS=("base" "idefix" "idefix_unrolled_preloadall")
+# METHODS=("base" "idefix" "cuda")
+METHODS=("cuda")
 
 # Allow BUILD_DIR to be set from the command line, default to build_H100
 BUILD_DIR=${BUILD_DIR:-build_H100}
@@ -103,6 +104,7 @@ for method in "${METHODS[@]}"; do
             --kernel-name-base demangled -k regex:"FaceReconstruction*" \
             -f -o "$OUTPUT_FILE" ./$BUILD_DIR/src/nova++ \
             ./inputs/rayleigh_taylor3d.ini --face-reconstruction="$method"
+
     else
         ncu --nvtx --import-source yes --target-processes all --print-summary per-gpu \
             --kernel-name-base demangled -k regex:"FaceReconstruction*" \

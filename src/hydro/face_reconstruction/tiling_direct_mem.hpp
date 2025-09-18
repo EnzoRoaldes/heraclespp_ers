@@ -34,11 +34,10 @@ class FaceReconstructionTilingDirectMem : public IFaceReconstruction
 
 private:
     SlopeLimiter m_slope_limiter;
-    bool m_enable_timer;
 
 public:
-    explicit FaceReconstructionTilingDirectMem(SlopeLimiter limiter, bool enable_timer = false) 
-        : m_slope_limiter(limiter), m_enable_timer(enable_timer) {}
+    explicit FaceReconstructionTilingDirectMem(SlopeLimiter limiter) 
+        : m_slope_limiter(limiter) {}
 
     void execute(
         Range const& range,
@@ -78,89 +77,36 @@ public:
             // printf("%s not found, using default tiling {%d, %d, %d}\n", filename.c_str(), m_tiling[0], m_tiling[1], m_tiling[2]);
         }
 
-        if (m_enable_timer) {
-            cudaEvent_t start, stop;
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            cudaEventRecord(start);
-
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                cell_mdrange_tiling(range, m_tiling),
-                KOKKOS_LAMBDA(int i, int j, int k)
+        Kokkos::parallel_for(
+            "face_reconstruction",
+            cell_mdrange_tiling(range, m_tiling),
+            KOKKOS_LAMBDA(int i, int j, int k)
+            {
+                for (int idim = 0; idim < ndim; ++idim)
                 {
-                    for (int idim = 0; idim < ndim; ++idim)
-                    {
-                        auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
-                        auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                        double const dl = kron(idim,0) * dx(i)
-                                        + kron(idim,1) * dy(j)
-                                        + kron(idim,2) * dz(k);
-                        double const dl_m = kron(idim,0) * dx(i_m)
-                                            + kron(idim,1) * dy(j_m)
-                                            + kron(idim,2) * dz(k_m);
-                        double const dl_p = kron(idim,0) * dx(i_p)
-                                            + kron(idim,1) * dy(j_p)
-                                            + kron(idim,2) * dz(k_p);
+                    auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
+                    auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
+                    double const dl = kron(idim,0) * dx(i)
+                                    + kron(idim,1) * dy(j)
+                                    + kron(idim,2) * dz(k);
+                    double const dl_m = kron(idim,0) * dx(i_m)
+                                        + kron(idim,1) * dy(j_m)
+                                        + kron(idim,2) * dz(k_m);
+                    double const dl_p = kron(idim,0) * dx(i_p)
+                                        + kron(idim,1) * dy(j_p)
+                                        + kron(idim,2) * dz(k_p);
 
-                        auto const offset = i + j * s1 + k * s2;
+                    auto const offset = i + j * s1 + k * s2;
 
-                        double const slope = slope_limiter(
-                        ( *(ptr_var + i_p + j_p*s1 + k_p*s2) - *(ptr_var + offset) ) / ((dl + dl_p) * 0.5),
-                        ( *(ptr_var + offset) - *(ptr_var + i_m + j_m*s1 + k_m*s2) ) / ((dl_m + dl) * 0.5));    
-                        
-                        *(ptr_var_rec + offset + 0*s3 + idim*s4) = *(ptr_var + offset) - (dl * 0.5) * slope;
-                        *(ptr_var_rec + offset + 1*s3 + idim*s4) = *(ptr_var + offset) + (dl * 0.5) * slope;
-                    }
+                    double const slope = slope_limiter(
+                    ( *(ptr_var + i_p + j_p*s1 + k_p*s2) - *(ptr_var + offset) ) / ((dl + dl_p) * 0.5),
+                    ( *(ptr_var + offset) - *(ptr_var + i_m + j_m*s1 + k_m*s2) ) / ((dl_m + dl) * 0.5));    
+                    
+                    *(ptr_var_rec + offset + 0*s3 + idim*s4) = *(ptr_var + offset) - (dl * 0.5) * slope;
+                    *(ptr_var_rec + offset + 1*s3 + idim*s4) = *(ptr_var + offset) + (dl * 0.5) * slope;
                 }
-            );
-
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-            float ms = 0;
-            cudaEventElapsedTime(&ms, start, stop);
-
-            std::string filename = "./exec_time_cudaEvent_face_reconstruction.dat";
-            std::ofstream timing_file(filename, std::ios::app);
-            if (timing_file) {
-                timing_file << "tiling_direct_mem" << " " << ms << "\n";
             }
-
-            cudaEventDestroy(start);
-            cudaEventDestroy(stop);
-        } else {
-
-            Kokkos::parallel_for(
-                "face_reconstruction",
-                cell_mdrange_tiling(range, m_tiling),
-                KOKKOS_LAMBDA(int i, int j, int k)
-                {
-                    for (int idim = 0; idim < ndim; ++idim)
-                    {
-                        auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
-                        auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                        double const dl = kron(idim,0) * dx(i)
-                                        + kron(idim,1) * dy(j)
-                                        + kron(idim,2) * dz(k);
-                        double const dl_m = kron(idim,0) * dx(i_m)
-                                            + kron(idim,1) * dy(j_m)
-                                            + kron(idim,2) * dz(k_m);
-                        double const dl_p = kron(idim,0) * dx(i_p)
-                                            + kron(idim,1) * dy(j_p)
-                                            + kron(idim,2) * dz(k_p);
-
-                        auto const offset = i + j * s1 + k * s2;
-
-                        double const slope = slope_limiter(
-                        ( *(ptr_var + i_p + j_p*s1 + k_p*s2) - *(ptr_var + offset) ) / ((dl + dl_p) * 0.5),
-                        ( *(ptr_var + offset) - *(ptr_var + i_m + j_m*s1 + k_m*s2) ) / ((dl_m + dl) * 0.5));    
-                        
-                        *(ptr_var_rec + offset + 0*s3 + idim*s4) = *(ptr_var + offset) - (dl * 0.5) * slope;
-                        *(ptr_var_rec + offset + 1*s3 + idim*s4) = *(ptr_var + offset) + (dl * 0.5) * slope;
-                    }
-                }
-            );
-        }
+        );
     }
 };
 
