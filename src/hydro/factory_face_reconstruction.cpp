@@ -56,7 +56,17 @@ namespace novapp {
 std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name)
 {
     if (name == "base")                                     return std::make_unique<FaceReconstructionBase                                  <Minmod>>(Minmod());
-    if (name == "cuda")                                     return std::make_unique<FaceReconstructionCuda                                  <Minmod>>(Minmod());
+    
+    if (name == "cuda32")                                     return std::make_unique<FaceReconstructionCuda<32,                             Minmod>>(Minmod());
+    if (name == "cuda40")                                     return std::make_unique<FaceReconstructionCuda<40,                             Minmod>>(Minmod());
+    if (name == "cuda48")                                     return std::make_unique<FaceReconstructionCuda<48,                             Minmod>>(Minmod());
+    if (name == "cuda56")                                     return std::make_unique<FaceReconstructionCuda<56,                             Minmod>>(Minmod());
+    if (name == "cuda64")                                     return std::make_unique<FaceReconstructionCuda<64,                             Minmod>>(Minmod());
+    if (name == "cuda72")                                     return std::make_unique<FaceReconstructionCuda<72,                             Minmod>>(Minmod());
+    if (name == "cuda80")                                     return std::make_unique<FaceReconstructionCuda<80,                             Minmod>>(Minmod());
+    if (name == "cuda96")                                     return std::make_unique<FaceReconstructionCuda<96,                             Minmod>>(Minmod());
+    if (name == "cuda128")                                    return std::make_unique<FaceReconstructionCuda<128,                            Minmod>>(Minmod());
+    if (name == "cuda168")                                    return std::make_unique<FaceReconstructionCuda<168,                            Minmod>>(Minmod());
 
     if (name == "tiling_default")                           return std::make_unique<FaceReconstructionTilingDefault                         <Minmod>>(Minmod());
     if (name == "tiling_opti")                              return std::make_unique<FaceReconstructionTilingOpti                            <Minmod>>(Minmod());

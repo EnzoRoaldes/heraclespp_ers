@@ -17,3 +17,5 @@ void RegisterTilingBenchmarks();
 void RegisterIdefixTilingBenchmarks();
 
 void RegisterDimensionBenchmarks();
+
+void RegisterGridBlockSizeBenchmarks();

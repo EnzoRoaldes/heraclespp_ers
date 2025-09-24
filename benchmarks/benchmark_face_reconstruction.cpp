@@ -8,6 +8,7 @@
 #include <factory_face_reconstruction.hpp>
 #include <benchmark/benchmark.h>
 #include "benchmark_face_reconstruction.hpp"
+#include "parallel_for.hpp"
 #include <grid.hpp>
 #include <grid_type.hpp>
 #include <int_cast.hpp>
@@ -19,7 +20,9 @@
 namespace {
 
 std::vector<std::string> const methods = {
-    "base", "cuda",
+    "base",
+
+    "cuda32", "cuda40", "cuda48", "cuda56", "cuda64", "cuda72", "cuda80", "cuda96", "cuda128", "cuda168",
 
     "idefix", "idefix_05", "idefix_unrolled", "idefix_unrolled_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
     "idefix_unrolled_05_varijk", "idefix_unrolled_preload", "idefix_unrolled_preload_05", "idefix_unrolled_preloadall",
@@ -159,6 +162,47 @@ void RegisterDimensionBenchmarks() {
 }
 
 
+// 4) Test "grid_block_size" : balayage de la taille de bloc pour la méthode "idefix_unrolled_preloadall"
+void RegisterGridBlockSizeBenchmarks() {
+    // Choose a representative cuda variant (adjust as you like)
+    std::vector<std::string> cuda_methods = {
+        "cuda32", "cuda40", "cuda48", "cuda56",  "cuda64", 
+        "cuda72", "cuda80", "cuda96", "cuda128", "cuda168"
+    };
+    // Threads per block candidates (x,y,z)
+    std::vector<dim3> tpb_list = {
+        dim3(32,2,1), dim3(32,4,1), dim3(64,2,1), dim3(64,4,1),
+        dim3(128,1,1), dim3(128,2,1), dim3(128,4,1)
+        // vérifier qu'on dépasse pas 2048 pour la v2 ! car 2 blocks par SM
+    };
+    // Blocks per grid: 0 means "auto" (computed from problem size) // here 21,161,161
+    std::vector<dim3> bpg_list = {
+        dim3(0,0,0), dim3(21,161,161), dim3(4,6,11)
+        // ajouterque si dim3(4,6,11) alors on __launch_bounds__ avec 2 blocks par SM
+    };
+    for (auto const& method : cuda_methods) {
+        for (auto const& bpg : bpg_list) {
+            for (auto const& tpb : tpb_list) {
+                std::string name = "gridblock/" + method
+                    + "/Gx" + std::to_string(bpg.x)
+                    + "_Gy" + std::to_string(bpg.y)
+                    + "_Gz" + std::to_string(bpg.z)
+                    + "/Bx" + std::to_string(tpb.x)
+                    + "_By" + std::to_string(tpb.y)
+                    + "_Bz" + std::to_string(tpb.z);
+                ::benchmark::RegisterBenchmark(
+                    name.c_str(),
+                    [method, tpb, bpg](benchmark::State& st) {
+                        set_cuda_launch(tpb, bpg);
+                        ::FaceReconstructionImpl(st, method, 0, 0, 0);
+                        reset_cuda_launch();
+                    }
+                )->Arg(320);
+            }
+        }
+    }
+}
+
 // POUR LAUNCH BOUNDS
 // // 5) Test "launchbounds" : balayage des launch bounds
 // void RegisterLaunchBoundsBenchmarks() {
@@ -167,7 +211,7 @@ void RegisterDimensionBenchmarks() {
 //         ::benchmark::RegisterBenchmark(                                                         \
 //             name.c_str(),                                                                       \
 //             [](benchmark::State& st){                                                           \
-//                 ::BM_FaceReconstruction_LB<TB,MB>(st);                                            \
+//                 ::BM_FaceReconstruction_LB<TB,MB>(st);                                          \
 //             }                                                                                   \
 //         )->Arg(320);                                                                            \
 //     } while (0)

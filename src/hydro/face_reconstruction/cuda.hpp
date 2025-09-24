@@ -29,7 +29,7 @@
 namespace novapp
 {
 
-template <typename SlopeLimiter>
+template <int Nreg, typename SlopeLimiter>
 class FaceReconstructionCuda : public IFaceReconstruction
 {
 
@@ -61,12 +61,17 @@ public:
         int Ny = end[1] - begin[1];
         int Nz = end[2] - begin[2];
 
-        parallel_for_3D<32>(begin, end, [=] __device__ __host__ (int i, int j, int k){
+        dim3 threadsPerBlock(32, 2, 1);
+        dim3 blocksPerGrid(21, 161, 161);
+
+        parallel_for_3D_v2<Nreg>(begin, end,
+            [=] __device__ __host__ (int i, int j, int k){
+            
             for (int idim = 0; idim < ndim; ++idim)
             {
                 auto const [i_m, j_m, k_m] = lindex(idim, i, j, k); // i - 1
                 auto const [i_p, j_p, k_p] = rindex(idim, i, j, k); // i + 1
-                double const dl   = kron(idim,0) * dx(i)
+                double const dl = kron(idim,0) * dx(i)
                                 + kron(idim,1) * dy(j)
                                 + kron(idim,2) * dz(k);
                 double const dl_m = kron(idim,0) * dx(i_m)
@@ -83,7 +88,8 @@ public:
                 var_rec(i, j, k, 0, idim) =  var(i, j, k) - (dl / 2) * slope;
                 var_rec(i, j, k, 1, idim) =  var(i, j, k) + (dl / 2) * slope;
             }
-        });
+        },
+        threadsPerBlock, blocksPerGrid);
     }
 };
 
