@@ -55,7 +55,7 @@ namespace novapp {
 
 std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name)
 {
-    if (name == "base")                                     return std::make_unique<FaceReconstructionBase                                  <Minmod>>(Minmod());
+    if (name == "base")                                       return std::make_unique<FaceReconstructionBase                                <Minmod>>(Minmod());
     
     if (name == "cuda32")                                     return std::make_unique<FaceReconstructionCuda<32,                             Minmod>>(Minmod());
     if (name == "cuda40")                                     return std::make_unique<FaceReconstructionCuda<40,                             Minmod>>(Minmod());
@@ -103,7 +103,7 @@ std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string
     // if (name == "tp_TeamThread_v2")                          return std::make_unique<FaceReconstructionTPTT2                                <Minmod>>(Minmod());
     // if (name == "tp_TeamThreadMDR")                          return std::make_unique<FaceReconstructionTPTTMDR                              <Minmod>>(Minmod());
 
-    throw std::runtime_error("Unknown faceaerazrazerazerazerazeraze reconstruction implementation: " + name + "/arazerazrar");
+    throw std::runtime_error("Unknown face reconstruction implementation: " + name);
 }
 
 } // namespace novapp

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 //!
-//! @file face_reconstruction.hpp
+//! @file base.hpp
 //!
 
 #pragma once
@@ -18,6 +18,7 @@
 #include <ndim.hpp>
 #include <range.hpp>
 
+#include "../extrapolation_reconstruction.hpp"
 #include "concepts.hpp"
 #include "euler_equations.hpp"
 #include "source_terms.hpp"
@@ -25,47 +26,15 @@
 namespace novapp
 {
 
-template <concepts::GravityField Gravity>
-class IExtrapolationReconstruction
-{
-public:
-    IExtrapolationReconstruction() = default;
-
-    IExtrapolationReconstruction(IExtrapolationReconstruction const& rhs) = default;
-
-    IExtrapolationReconstruction(IExtrapolationReconstruction&& rhs) noexcept = default;
-
-    virtual ~IExtrapolationReconstruction() noexcept = default;
-
-    IExtrapolationReconstruction& operator=(IExtrapolationReconstruction const& rhs) = default;
-
-    IExtrapolationReconstruction& operator=(IExtrapolationReconstruction&& rhs) noexcept = default;
-
-    virtual void execute(
-        Range const& range,
-        Grid const& grid,
-        Gravity const& gravity,
-        double dt_reconstruction,
-        KV_cdouble_6d const& u_rec,
-        KV_cdouble_5d const& P_rec,
-        KV_double_5d const& rho_rec,
-        KV_double_6d const& rhou_rec,
-        KV_double_5d const& E_rec,
-        KV_double_6d const& fx_rec) const
-        = 0;
-};
-
 template <concepts::EulerEoS EoS, concepts::GravityField Gravity>
-class ExtrapolationTimeReconstruction : public IExtrapolationReconstruction<Gravity>
+class ExtrapolationReconstructionBase : public IExtrapolationReconstruction<Gravity>
 {
 private:
     EoS m_eos;
 
 public:
-    explicit ExtrapolationTimeReconstruction(EoS const& eos)
-        : m_eos(eos)
-    {
-    }
+    explicit ExtrapolationReconstructionBase(EoS const& eos)
+        : m_eos(eos) {}
 
     void execute(
         Range const& range,
@@ -77,7 +46,7 @@ public:
         KV_double_5d const& rho_rec,
         KV_double_6d const& rhou_rec,
         KV_double_5d const& E_rec,
-        KV_double_6d const& fx_rec) const final
+        KV_double_6d const& fx_rec) const override
     {
         assert(equal_extents({0, 1, 2, 3, 4}, rho_rec, rhou_rec, E_rec, fx_rec, u_rec, P_rec));
         assert(equal_extents(5, rhou_rec, u_rec));

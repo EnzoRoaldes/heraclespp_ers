@@ -30,7 +30,8 @@
 #include <array_conversion.hpp>
 #include <config.yaml.hpp>
 #include <eos.hpp>
-#include <extrapolation_time.hpp>
+#include <extrapolation_reconstruction.hpp>
+#include <factory_extrapolation_reconstruction.hpp>
 #include <face_reconstruction.hpp>
 #include <factory_face_reconstruction.hpp>
 #include <geom.hpp>
@@ -297,7 +298,7 @@ void main(int argc, char** argv)
 
     DistributedBoundaryCondition const bcs(grid, param);
 
-    // Default implementation name
+    // Default implementation name face_reconstruction
     std::string face_reconstruction_impl = "base";
     // Parse command line for --face-reconstruction=<name>
     for (int i = 1; i < argc; ++i) {
@@ -307,12 +308,22 @@ void main(int argc, char** argv)
         }
     }
 
+    // Default implementation name extrapolation_reconstruction
+    std::string extrapolation_reconstruction_impl = "base";
+    // Parse command line for --extrapolation-reconstruction=<name>
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.find("--extrapolation-reconstruction=") == 0) {
+            extrapolation_reconstruction_impl = arg.substr(strlen("--extrapolation-reconstruction="));
+        }
+    }
+
     // Use the selected implementation
     std::unique_ptr<IFaceReconstruction> face_reconstruction
             = new_factory_face_reconstruction(face_reconstruction_impl);
 
     std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
-            = std::make_unique<ExtrapolationTimeReconstruction<EOS, Gravity>>(eos);
+            = new_factory_extrapolation_reconstruction<Gravity>(extrapolation_reconstruction_impl, eos);
 
     std::unique_ptr<IHydroReconstruction<Gravity>> reconstruction
         = std::make_unique<MUSCLHancockHydroReconstruction<EOS, Gravity>>(std::move(face_reconstruction),
