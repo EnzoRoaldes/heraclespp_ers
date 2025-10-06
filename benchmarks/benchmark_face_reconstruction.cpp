@@ -17,22 +17,7 @@
 #include <ndim.hpp>
 #include <range.hpp>
 
-namespace {
-
-std::vector<std::string> const methods = {
-    "base",
-
-    "cuda32", "cuda40", "cuda48", "cuda56", "cuda64", "cuda72", "cuda80", "cuda96", "cuda128", "cuda168",
-
-    "idefix", "idefix_05", "idefix_unrolled", "idefix_unrolled_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
-    "idefix_unrolled_05_varijk", "idefix_unrolled_preload", "idefix_unrolled_preload_05", "idefix_unrolled_preloadall",
-
-    "tiling_default", "tiling_opti", "tiling_varijk", "tiling_05_varijk", "tiling_direct_mem", "tiling_unrolled", "tiling_unrolled_05",
-    "tiling_unrolled_05_varijk", "tiling_unrolled_05_preloadall",
-    
-    // "tp_TeamThread", "tp_TeamThreadMDR"
-};
-
+namespace benchmark_face_reconstruction {
 
 void set_constant_bytes_processed(benchmark::State& state, std::size_t const bytes)
 {
@@ -79,7 +64,9 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
     Kokkos::deep_copy(rho, 1);
     Kokkos::deep_copy(rho_rec, -1);
 
-    std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::new_factory_face_reconstruction(method);
+    std::array<int, 3> tiling = {tx, ty, tz};
+
+    std::unique_ptr<novapp::IFaceReconstruction> const face_reconstruction = novapp::new_factory_face_reconstruction(method, tiling);
     
     novapp::Range const range = grid.range.no_ghosts();
     Kokkos::fence();
@@ -95,8 +82,6 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
     set_constant_bytes_processed(state, sizeof(double) * (1 + novapp::ndim * 2) * cells);
 }
 
-} // namespace
-
 
 // POUR LAUNCH BOUNDS
 // template<int TB, int MINBLK>
@@ -111,13 +96,28 @@ void FaceReconstructionImpl(benchmark::State& state, std::string const& method, 
 
 // 1) Test "version" : enregistre toutes les méthodes pour les temps d'exécution
 void RegisterVersionBenchmarks() {
+    std::vector<std::string> const methods = {
+        "base",
+
+        // "cuda32", "cuda40", "cuda48", "cuda56", "cuda64", "cuda72", "cuda80", "cuda96", "cuda128", "cuda168", // Les mettre à part
+
+        "idefix", "idefix_05", "idefix_unrolled", "idefix_unrolled_05", "idefix_unrolled_05_2", "idefix_unrolled_05_fma",
+        "idefix_unrolled_05_varijk", "idefix_unrolled_preload", "idefix_unrolled_preload_05", "idefix_unrolled_preloadall",
+
+        // MODIFIER : utiliser tiling_GBM pour les test "tiling_*"
+        "tiling_default", "tiling_opti", "tiling_varijk", "tiling_05_varijk", "tiling_direct_mem", "tiling_unrolled", "tiling_unrolled_05",
+        "tiling_unrolled_05_varijk", "tiling_unrolled_05_preloadall",
+        
+        // "tp_TeamThread", "tp_TeamThreadMDR" // mal codés, ne sert à rien de les tester
+    };
+
     for (auto const& method : methods) {
-        std::string name = "version/" + method;
+        std::string name = "version_face/" + method;
         ::benchmark::RegisterBenchmark(
             name.c_str(),
             [method](benchmark::State& st) {
                 // tx,ty,tz à 0 par défaut ; si method=="tiling", le fichier tiling.dat sera écrit.
-                ::FaceReconstructionImpl(st, method, 0, 0, 0);
+                benchmark_face_reconstruction::FaceReconstructionImpl(st, method, 0, 0, 0);
             }
         )->Arg(320);
     }
@@ -125,6 +125,7 @@ void RegisterVersionBenchmarks() {
 
 
 // 2) Test "tiling" : balayage (tx,ty,tz) pour la méthode "tiling"
+// MODIFIER
 void RegisterTilingBenchmarks() {
     std::vector<int> I = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
     std::vector<int> J = I;
@@ -132,14 +133,14 @@ void RegisterTilingBenchmarks() {
     for (int tx : I) {
         for (int ty : J) {
             for (int tz : K) {
-                if (1LL * tx * ty * tz > 512) continue;
-                std::string name = "tiling/Tx" + std::to_string(tx)
+                if (tx * ty * tz > 512) continue;
+                std::string name = "tiling_GBM/Tx" + std::to_string(tx)
                 + "_Ty" + std::to_string(ty)
                 + "_Tz" + std::to_string(tz);
                 ::benchmark::RegisterBenchmark(
                     name.c_str(),
                     [tx, ty, tz](benchmark::State& st) { 
-                        ::FaceReconstructionImpl(st, "tiling", tx, ty, tz); 
+                        benchmark_face_reconstruction::FaceReconstructionImpl(st, "tiling_GBM", tx, ty, tz); 
                     }
                 )->Arg(320);
             }
@@ -155,7 +156,7 @@ void RegisterDimensionBenchmarks() {
         ::benchmark::RegisterBenchmark(
             name.c_str(),
             [n](benchmark::State& st) {
-                ::FaceReconstructionImpl(st, "base", 0, 0, 0); 
+                benchmark_face_reconstruction::FaceReconstructionImpl(st, "base", 0, 0, 0); 
             }
         )->Arg(n);
     }
@@ -194,7 +195,7 @@ void RegisterGridBlockSizeBenchmarks() {
                     name.c_str(),
                     [method, tpb, bpg](benchmark::State& st) {
                         set_cuda_launch(tpb, bpg);
-                        ::FaceReconstructionImpl(st, method, 0, 0, 0);
+                        benchmark_face_reconstruction::FaceReconstructionImpl(st, method, 0, 0, 0);
                         reset_cuda_launch();
                     }
                 )->Arg(320);
@@ -238,3 +239,4 @@ void RegisterGridBlockSizeBenchmarks() {
 //     }
 // }
             
+} // namespace benchmark_face_reconstruction

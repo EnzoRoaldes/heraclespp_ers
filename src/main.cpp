@@ -31,6 +31,7 @@
 #include <config.yaml.hpp>
 #include <eos.hpp>
 #include <extrapolation_reconstruction.hpp>
+#include <factory_extrapolation_reconstruction.hpp>
 #include <face_reconstruction.hpp>
 #include <factory_face_reconstruction.hpp>
 #include <geom.hpp>
@@ -299,20 +300,30 @@ void main(int argc, char** argv)
 
     // Default implementation name
     std::string face_reconstruction_impl = "base";
+    std::string extrapolation_reconstruction_impl = "base";
     // Parse command line for --face-reconstruction=<name>
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg.find("--face-reconstruction=") == 0) {
             face_reconstruction_impl = arg.substr(strlen("--face-reconstruction="));
         }
+        if (arg.find("--extrapolation-reconstruction=") == 0) {
+            extrapolation_reconstruction_impl = arg.substr(strlen("--extrapolation-reconstruction="));
+        }
     }
+    
 
+    std::array<int, 3> default_tiling = {16, 2, 2};
+    
     // Use the selected implementation
     std::unique_ptr<IFaceReconstruction> face_reconstruction
-            = new_factory_face_reconstruction(face_reconstruction_impl);
+            = new_factory_face_reconstruction(face_reconstruction_impl, default_tiling);
 
     std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
-            = std::make_unique<ExtrapolationTimeReconstruction<EOS, Gravity>>(eos);
+            = new_factory_extrapolation_reconstruction(extrapolation_reconstruction_impl, eos, default_tiling);
+
+    // std::unique_ptr<IExtrapolationReconstruction<Gravity>> time_reconstruction
+    //         = std::make_unique<HancockExtrapolationReconstruction<EOS, Gravity>>(eos);
 
     std::unique_ptr<IHydroReconstruction<Gravity>> reconstruction
         = std::make_unique<MUSCLHancockHydroReconstruction<EOS, Gravity>>(std::move(face_reconstruction),

@@ -15,22 +15,24 @@ target_compile_features(hydro PUBLIC cxx_std_20)
 
 target_link_libraries(
     hydro
-    PUBLIC Kokkos::kokkos mesh utils
+    PUBLIC Kokkos::kokkos mesh utils thermodynamics gravity
     INTERFACE MPI::MPI_CXX
 )
 
 # new
 target_sources(
     hydro
-    PRIVATE face_reconstruction.cpp
+    PRIVATE face_reconstruction.cpp factory_face_reconstruction.cpp factory_extrapolation_reconstruction.cpp
     INTERFACE
         FILE_SET HEADERS
             FILES
                 array_conversion.hpp
-                concepts.hpp
+                concepts.hpps
                 euler_equations.hpp
                 extrapolation_reconstruction.hpp
                 face_reconstruction.hpp
+                factory_face_reconstruction.hpp
+                factory_extrapolation_reconstruction.hpp
                 godunov_scheme.hpp
                 hydro_reconstruction.hpp
                 limited_linear_reconstruction.hpp

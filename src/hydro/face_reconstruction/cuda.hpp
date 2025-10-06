@@ -21,10 +21,10 @@
 #include <kronecker.hpp>
 #include <ndim.hpp>
 #include <range.hpp>
-#include <parallel_for.hpp>
 
+#include "../parallel_for.hpp"
 #include "../face_reconstruction.hpp"
-#include "slope_limiters.hpp"
+#include "../slope_limiters.hpp"
 
 namespace novapp
 {

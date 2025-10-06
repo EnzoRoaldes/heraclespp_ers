@@ -9,6 +9,7 @@
 #include <Kokkos_Core.hpp>
 
 #include "benchmark_face_reconstruction.hpp"
+#include "benchmark_extrapolation_reconstruction.hpp"
 
 int main(int argc, char** argv)
 {
@@ -16,12 +17,17 @@ int main(int argc, char** argv)
     MPI_Init(&argc, &argv);
     ::benchmark::Initialize(&argc, argv);
 
-    RegisterVersionBenchmarks();
-    RegisterTilingBenchmarks();
-    RegisterDimensionBenchmarks();
-    RegisterGridBlockSizeBenchmarks();
+    /* Register benchmarks FaceReconstruction */
+    benchmark_face_reconstruction::RegisterVersionBenchmarks();
+    benchmark_face_reconstruction::RegisterTilingBenchmarks();
+    benchmark_face_reconstruction::RegisterDimensionBenchmarks();
+    benchmark_face_reconstruction::RegisterGridBlockSizeBenchmarks();
     // RegisterIdefixTilingBenchmarks();
     // RegisterLaunchBoundsBenchmarks();
+
+    /* Register benchmarks ExtrapolationReconstruction */
+    benchmark_extrapolation_reconstruction::RegisterVersionBenchmarks();
+
 
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) {
         MPI_Finalize();

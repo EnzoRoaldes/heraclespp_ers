@@ -44,7 +44,7 @@ public:
         , rho1(reader.GetReal("Initialisation", "rho1", 1.0))
         , u0(reader.GetReal("Initialisation", "u0", 1.0))
         , P0(reader.GetReal("Initialisation", "P0", 1.0))
-	, nfx(reader.GetInteger("Passive Scalar", "nfx", 0)) // (Enzo)
+	    , nfx(reader.GetInteger("Passive Scalar", "nfx", 0)) // (Enzo)
     {
     }
 };

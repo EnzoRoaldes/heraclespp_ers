@@ -12,10 +12,14 @@ target_sources(
         benchmark_conv_cons_to_prim.cpp
         benchmark_face_reconstruction.cpp
         benchmark_face_reconstruction.hpp
+        benchmark_extrapolation_reconstruction.cpp
+        benchmark_extrapolation_reconstruction.hpp
         main.cpp
+        ../src/hydro/factory_face_reconstruction.cpp
+        ../src/hydro/factory_extrapolation_reconstruction.cpp
 )
 
 target_link_libraries(
     benchmarks
-    PRIVATE MPI::MPI_CXX benchmark::benchmark hydro utils
+    PRIVATE MPI::MPI_CXX benchmark::benchmark hydro utils  thermodynamics gravity
 )

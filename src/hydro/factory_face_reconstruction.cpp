@@ -6,6 +6,7 @@
 //! @file factory_face_reconstruction.cpp
 //!
 
+
 #include <memory>
 #include <string>
 #include <stdexcept>
@@ -17,6 +18,7 @@
 #include "face_reconstruction/cuda.hpp"
 
 #include "face_reconstruction/tiling.hpp"
+#include "face_reconstruction/tiling_GBM.hpp"
 #include "face_reconstruction/tiling_default.hpp"
 #include "face_reconstruction/tiling_opti.hpp"
 #include "face_reconstruction/tiling_varijk.hpp"
@@ -53,7 +55,7 @@
 
 namespace novapp {
 
-std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name)
+std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name, std::array<int, 3> tiling= {16, 2, 2})
 {
     if (name == "base")                                     return std::make_unique<FaceReconstructionBase                                  <Minmod>>(Minmod());
     
@@ -71,6 +73,7 @@ std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string
     if (name == "tiling_default")                           return std::make_unique<FaceReconstructionTilingDefault                         <Minmod>>(Minmod());
     if (name == "tiling_opti")                              return std::make_unique<FaceReconstructionTilingOpti                            <Minmod>>(Minmod());
     if (name == "tiling")                                   return std::make_unique<FaceReconstructionTiling                                <Minmod>>(Minmod());
+    if (name == "tiling_GBM")                               return std::make_unique<FaceReconstructionTilingGBM                             <Minmod>>(Minmod(), tiling);
     if (name == "tiling_direct_mem")                        return std::make_unique<FaceReconstructionTilingDirectMem                       <Minmod>>(Minmod());
     if (name == "tiling_varijk")                            return std::make_unique<FaceReconstructionTilingVarijk                          <Minmod>>(Minmod());
     if (name == "tiling_05_varijk")                         return std::make_unique<FaceReconstructionTiling05Varijk                        <Minmod>>(Minmod());

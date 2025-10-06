@@ -22,7 +22,7 @@
 #include <ndim.hpp>
 #include <range.hpp>
 
-#include "slope_limiters.hpp"
+#include "../slope_limiters.hpp"
 #include "../utils/timer.cpp"
 
 namespace novapp

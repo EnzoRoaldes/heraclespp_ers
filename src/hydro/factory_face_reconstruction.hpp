@@ -15,7 +15,7 @@
 #include <kokkos_shortcut.hpp> //
 
 
-namespace novapp 
+namespace novapp
 {
-std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name);
+std::unique_ptr<IFaceReconstruction> new_factory_face_reconstruction(std::string const& name, std::array<int, 3> tiling);
 } // namespace novapp

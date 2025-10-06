@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 //!
-//! @file face_reconstruction.hpp
+//! @file base.hpp
 //!
 
 #pragma once
@@ -23,7 +23,7 @@
 #include <range.hpp>
 
 #include "../face_reconstruction.hpp"
-#include "slope_limiters.hpp"
+#include "../slope_limiters.hpp"
 
 namespace novapp
 {
