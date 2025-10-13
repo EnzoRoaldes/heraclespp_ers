@@ -61,7 +61,7 @@ export KOKKOS_TOOLS_LIBS=/linkhome/rech/genmdl01/ult48qa/kokkos-tools/profiling/
 #         "tiling_05_varijk" "tiling_direct_mem" "tiling_opti" "tiling_default" "tiling_unrolled_05" "tiling_unrolled_05_varijk" "tiling_unrolled" "tiling_varijk")
 
 # METHODS=("base" "idefix" "cuda")
-METHODS=("base")
+METHODS=("base" "idefix")
 
 # Allow BUILD_DIR to be set from the command line, default to build_H100
 BUILD_DIR=${BUILD_DIR:-build_H100}

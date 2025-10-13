@@ -61,12 +61,13 @@ void ExtrapolationReconstructionImpl(benchmark::State& state, std::string const&
     novapp::sync_device(x_glob, y_glob, z_glob);
     grid.set_grid(x_glob.view_device(), y_glob.view_device(), z_glob.view_device());
 
-    novapp::KV_cdouble_6d const u_rec("u_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim, novapp::ndim);
+    // novapp::KV_cdouble_6d const u_rec("u_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim, novapp::ndim);
+    novapp::KV_double_6d const u_rec("u_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim, novapp::ndim);
     novapp::KV_double_5d const P_rec("P_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim);
     novapp::KV_double_5d const rho_rec("rho_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim);
     novapp::KV_double_6d const rhou_rec("rhou_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim, novapp::ndim);
     novapp::KV_double_5d const E_rec("E_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim);
-    novapp::KV_double_6d const fx_rec("fx_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim, param.nfx=1);
+    novapp::KV_double_6d const fx_rec("fx_rec", grid.Nx_local_wg[0], grid.Nx_local_wg[1], grid.Nx_local_wg[2], 2, novapp::ndim, /*param.nfx=*/1);
 
     Kokkos::deep_copy(u_rec, -1);
     Kokkos::deep_copy(P_rec, -1);
@@ -77,15 +78,17 @@ void ExtrapolationReconstructionImpl(benchmark::State& state, std::string const&
 
 
     //
-    std::unique_ptr<UniformGravity> g;
-    g = std::make_unique<UniformGravity>(make_gravity(param, grid, rho.view_device()));
-    dt_reconstruction = dt/2;
+    std::unique_ptr<novapp::UniformGravity> gravity;
+    gravity = std::make_unique<novapp::UniformGravity>(novapp::make_uniform_gravity(0.0, 0.0, -2.0));
+    // gravity = std::make_unique<novapp::UniformGravity>(novapp::make_uniform_gravity(param.gx, param.gy, param.gz));
+    double const dt = 0.01; // A MODIFIER
+    double const dt_reconstruction = dt/2;
     //
 
 
     std::array<int, 3> tiling = {tx, ty, tz};
 
-    std::unique_ptr<novapp::IExtrapolationReconstruction<UniformGravity>> 
+    std::unique_ptr<novapp::IExtrapolationReconstruction<novapp::UniformGravity>> 
     const extrapolation_reconstruction = novapp::new_factory_extrapolation_reconstruction(method, eos, tiling);
 
      // void execute(
@@ -93,17 +96,17 @@ void ExtrapolationReconstructionImpl(benchmark::State& state, std::string const&
     //     Grid const& grid, OK
     //     Gravity const& gravity, A VOIR
     //     double const dt_reconstruction, A VOIR
-    //     KV_cdouble_6d const& u_rec, OK
-    //     KV_cdouble_5d const& P_rec, OK
-    //     KV_double_5d const& rho_rec, OK
-    //     KV_double_6d const& rhou_rec, OK
-    //     KV_double_5d const& E_rec, OK
-    //     KV_double_6d const& fx_rec, OK
+    //     KV_cdouble_6d const& u_rec, A VOIR
+    //     KV_cdouble_5d const& P_rec, A VOIR
+    //     KV_double_5d const& rho_rec, A VOIR
+    //     KV_double_6d const& rhou_rec, A VOIR
+    //     KV_double_5d const& E_rec, A VOIR
+    //     KV_double_6d const& fx_rec, A VOIR
 
-    novapp::Range const range = novapp::grid.range.no_ghosts();
+    novapp::Range const range = grid.range.no_ghosts();
     Kokkos::fence();
     for ([[maybe_unused]] auto _ : state) {
-        extrapolation_reconstruction->execute(range, grid, gravity, dt_reconstruction,
+        extrapolation_reconstruction->execute(range, grid, *gravity, dt_reconstruction,
             u_rec, P_rec, rho_rec, rhou_rec, E_rec, fx_rec);
         Kokkos::fence();
     }

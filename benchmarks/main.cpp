@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     // RegisterLaunchBoundsBenchmarks();
 
     /* Register benchmarks ExtrapolationReconstruction */
-    benchmark_extrapolation_reconstruction::RegisterVersionBenchmarks();
+    // benchmark_extrapolation_reconstruction::RegisterVersionBenchmarks();
 
 
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) {

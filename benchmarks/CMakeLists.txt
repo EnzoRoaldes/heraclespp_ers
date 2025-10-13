@@ -21,5 +21,5 @@ target_sources(
 
 target_link_libraries(
     benchmarks
-    PRIVATE MPI::MPI_CXX benchmark::benchmark hydro utils  thermodynamics gravity
+    PRIVATE MPI::MPI_CXX benchmark::benchmark hydro utils thermodynamics gravity
 )
